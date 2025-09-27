@@ -4,3 +4,4 @@ pywin32
 pillow
 matplotlib
 weasyprint==61.2
+packaging

@@ -29,7 +29,7 @@ DB_PATH = data_dir() / DB_FILE_NAME
 BACKUP_DIR = data_dir() / "backups"
 LOG_PATH = data_dir() / "logs" / "vet_management_errors.log"
 STYLE_QSS = ( (Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "assets" / "style.qss") )
-LOGO_PNG  = resource_path(f"{ASSETS_DIR}/pet_wellness_logo.png")
+LOGO_PNG  = resource_path(f"{ASSETS_DIR}/app.ico")
 
 
 def ensure_seed_db(seed_path: str | os.PathLike | None = None) -> None:

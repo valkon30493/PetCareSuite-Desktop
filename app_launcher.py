@@ -1,7 +1,7 @@
 # app_launcher.py
-import db  # central DB gateway
 import sys, os, traceback
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 from login_screen import LoginWindow
 from main_window import MainWindow
 from logger import log_error
@@ -110,14 +110,24 @@ def ensure_core_schema() -> None:
 
     # Optional: console debug
     try:
-        print(f"ðŸâ€Å½ Using DB at: {DB_PATH}")
-        print(f"🧱 Tables now present: {sorted(have_final)}")
+        print(f"Using DB at: {DB_PATH}")
+        print(f"Tables now present: {sorted(have_final)}")
     except Exception:
         pass
 
 
 def launch_app():
     app = QApplication(sys.argv)
+
+    # App/window icon (works in dev & PyInstaller)
+    app.setWindowIcon(QIcon(resource_path("assets/petcaresuite_icon.ico")))
+
+    # Splash screen (pick dark or light version)
+    splash_img = resource_path("assets/petcaresuite_splash_light_1600x900.png")
+    splash = QSplashScreen(QPixmap(splash_img))
+    splash.show()
+    app.processEvents()
+
 
     # 1) Ensure DB file exists
     ensure_seed_db()  # creates empty DB if missing (or copies a seed)
@@ -166,7 +176,11 @@ def launch_app():
     login_window.login_successful.connect(on_logged_in)
 
     try:
+        # Show login first (or your preferred flow)
         login_window.show()
+
+        # Hide splash once first window is ready
+        splash.finish(login_window)
         sys.exit(app.exec())
     except Exception:
         err_trace = traceback.format_exc()

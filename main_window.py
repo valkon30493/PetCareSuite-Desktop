@@ -3,9 +3,10 @@ import traceback
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
-    QLabel, QStackedWidget, QPushButton, QMessageBox
+    QLabel, QStackedWidget, QPushButton, QMessageBox, QStatusBar,
+    QDialog, QDialogButtonBox
 )
-
+from PySide6.QtGui import QPixmap, QAction
 from patient_management import PatientManagementScreen
 from appointment_scheduling import AppointmentSchedulingScreen
 from notifications_reminders import NotificationsRemindersScreen
@@ -17,7 +18,7 @@ from user_management import UserManagementScreen
 from user_password_dialog import ChangeMyPasswordDialog
 from reports import ZReportWidget
 from reports_analytics import ReportsAnalyticsScreen
-from backup import backup_now
+from backup import backup_now, resource_path, DB_PATH
 
 
 # Optional modules with graceful fallbacks
@@ -55,11 +56,48 @@ except Exception as e:
         def __init__(self):
             super().__init__("📠Consent Forms screen not available")
 
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About PetCareSuite Desktop")
+        self.setModal(True)
+
+        lay = QVBoxLayout(self)
+
+        # Logo
+        logo = QLabel()
+        pix = QPixmap(resource_path("assets/petcaresuite_icon_256.png"))
+        if not pix.isNull():
+            logo.setPixmap(pix.scaledToHeight(96, Qt.SmoothTransformation))
+            logo.setAlignment(Qt.AlignCenter)
+            lay.addWidget(logo)
+
+        # Text
+        info = QLabel(
+            "<b>PetCareSuite Desktop</b><br>"
+            "Version 1.0.0<br>"
+            "© Valkon Solutions<br><br>"
+            "Powered by Valkon Solutions"
+        )
+        info.setAlignment(Qt.AlignCenter)
+        lay.addWidget(info)
+
+        # Environment details (useful for support)
+        env = QLabel(f"<small>Database: {DB_PATH}</small>")
+        env.setAlignment(Qt.AlignCenter)
+        env.setStyleSheet("color:#6b7280;")
+        lay.addWidget(env)
+
+        # Close button
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(self.reject)
+        lay.addWidget(btns)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Veterinary Management System")
+        self.setWindowTitle("PetCareSuite Desktop")
         self.setGeometry(100, 100, 1600, 900)
 
         self.user_role = "Guest"
@@ -162,6 +200,19 @@ class MainWindow(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
+        # --- Help → About menu ---
+        help_menu = self.menuBar().addMenu("&Help")
+        about_act = QAction("About PetCareSuite…", self)
+        about_act.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_act)
+
+        # --- Status bar with subtle branding (add near the end of __init__) ---
+        status = QStatusBar()
+        brand = QLabel("Powered by Valkon Solutions")
+        brand.setStyleSheet("color:#6b7280;")  # soft gray
+        status.addPermanentWidget(brand, 1)  # right-aligned
+        self.setStatusBar(status)
+
         # Cross-screen connections (guarded for compatibility)
         try:
             self.patient_screen.patient_list_updated.connect(self.appointment_screen.reload_patients)
@@ -214,7 +265,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             log_error(f"Wire invoiceSelected → notifications.load_reminders failed: {e}")
 
-    # â€â€Ã¢€â€Ã¢€â€ Helpers / plumbing â€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€Ã¢€â€
+    # Helpers / plumbing
     def display_screen(self, idx: int):
         self.stacked.setCurrentIndex(idx)
 
@@ -331,4 +382,9 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
         super().closeEvent(e)
+
+    def show_about_dialog(self):
+        dlg = AboutDialog(self)
+        dlg.exec()
+
 

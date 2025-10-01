@@ -3,15 +3,18 @@ from hashlib import sha256
 from PySide6.QtWidgets import (QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout,
     QWidget, QMessageBox
 )
+from PySide6.QtGui import QPixmap
 from db import connect as _connect
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
+from backup import resource_path
 
 class LoginWindow(QMainWindow):
     login_successful = Signal(str, str)  # username, role
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login - Veterinary Management Software")
+        self.setWindowTitle("Login - PetCareSuite Desktop")
+        self.setFixedSize(400, 280)  # compact and consistent
 
         # Widgets
         self.username_input = QLineEdit()
@@ -26,6 +29,12 @@ class LoginWindow(QMainWindow):
 
         # Layout
         layout = QVBoxLayout()
+        logo = QLabel()
+        pix = QPixmap(resource_path("assets/petcaresuite_icon_512.png"))
+        if not pix.isNull():
+            logo.setPixmap(pix.scaledToHeight(80, Qt.SmoothTransformation))
+            logo.setAlignment(Qt.AlignCenter)
+            layout.addWidget(logo)
         layout.addWidget(QLabel("Please log in"))
         layout.addWidget(self.username_input)
         layout.addWidget(self.password_input)

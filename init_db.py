@@ -26,6 +26,17 @@ def _migrate(conn):
     _ensure_schema_version_table(conn)
     v = _get_version(conn)
 
+    # --- BEGIN PATCH: init_db._migrate additions ---
+    # Find: def _migrate(conn): ... v = _get_version(conn)
+    # Add the block below right after computing `v`.
+    if v < 2:
+        # Add owner snapshot columns for owner‑first invoicing
+        conn.execute("ALTER TABLE invoices ADD COLUMN owner_name TEXT")
+        conn.execute("ALTER TABLE invoices ADD COLUMN owner_contact TEXT")
+        conn.execute("ALTER TABLE invoices ADD COLUMN owner_email TEXT")
+        _set_version(conn, 2)
+     # --- END PATCH ---
+
     # example future migration:
     # if v < 2:
     #     conn.execute("ALTER TABLE invoices ADD COLUMN notes TEXT DEFAULT NULL")

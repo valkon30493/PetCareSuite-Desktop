@@ -1,21 +1,37 @@
 # notifications_reminders.py
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout,
-    QMessageBox, QHeaderView, QInputDialog, QLabel
-)
-from db import connect as _connect
+import os
+import sqlite3
+from datetime import datetime, timedelta
 
 from PySide6.QtCore import QTimer
-import sqlite3
-import os
-from datetime import datetime, timedelta
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from db import connect as _connect
 
 # Import the email sender AND the kill-switch flag if available.
 # Fallback to reading ENABLE_EMAILS from env if the module doesn't expose it yet.
 try:
-    from notifications import send_email, ENABLE_EMAILS
+    from notifications import ENABLE_EMAILS, send_email
 except Exception:
     from notifications import send_email
-    ENABLE_EMAILS = str(os.getenv("ENABLE_EMAILS", "0")).strip().lower() in ("1", "true", "yes")
+
+    ENABLE_EMAILS = str(os.getenv("ENABLE_EMAILS", "0")).strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
 
 class NotificationsRemindersScreen(QWidget):
     def __init__(self):
@@ -27,34 +43,54 @@ class NotificationsRemindersScreen(QWidget):
         # Optional banner to show current email state
         if not ENABLE_EMAILS:
             banner = QLabel("📭 Outgoing emails are DISABLED (ENABLE_EMAILS=0).")
-            banner.setStyleSheet("color:#b45309; background:#fff7ed; border:1px solid #fed7aa; padding:6px; border-radius:6px;")
+            banner.setStyleSheet(
+                "color:#b45309; background:#fff7ed; border:1px solid #fed7aa; padding:6px; border-radius:6px;"
+            )
             layout.addWidget(banner)
 
         # Table for reminders
         self.reminders_table = QTableWidget()
         # Enable wrapping and adjust header style
-        self.reminders_table.horizontalHeader().setStyleSheet("""
+        self.reminders_table.horizontalHeader().setStyleSheet(
+            """
             QHeaderView::section {
                 white-space: normal; /* Allow multiline text */
                 padding: 4px;        /* Add padding for better spacing */
                 font-size: 12px;     /* Adjust font size */
             }
-        """)
+        """
+        )
         self.adjust_header_height()
         self.reminders_table.horizontalHeader().setFixedHeight(60)
-        self.reminders_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.reminders_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
         self.reminders_table.setColumnCount(13)
-        self.reminders_table.setHorizontalHeaderLabels([
-            "Reminder ID", "Appointment Time", "Patient Name", "Owner Name",
-            "Owner Contact", "Owner Email", "Type", "Reason", "Vet",
-            "Appointment Status", "Reminder Time", "Status", "Reminder Reason"
-        ])
+        self.reminders_table.setHorizontalHeaderLabels(
+            [
+                "Reminder ID",
+                "Appointment Time",
+                "Patient Name",
+                "Owner Name",
+                "Owner Contact",
+                "Owner Email",
+                "Type",
+                "Reason",
+                "Vet",
+                "Appointment Status",
+                "Reminder Time",
+                "Status",
+                "Reminder Reason",
+            ]
+        )
         layout.addWidget(self.reminders_table)
 
         # Buttons for actions
         button_layout = QHBoxLayout()
         self.show_today_button = QPushButton("Today's Reminders")
-        self.show_today_button.clicked.connect(lambda: self.load_reminders(show_all=False))
+        self.show_today_button.clicked.connect(
+            lambda: self.load_reminders(show_all=False)
+        )
         button_layout.addWidget(self.show_today_button)
 
         self.show_all_button = QPushButton("All Reminders")
@@ -62,7 +98,9 @@ class NotificationsRemindersScreen(QWidget):
         button_layout.addWidget(self.show_all_button)
 
         self.check_notifications_button = QPushButton("Check & Send Notifications")
-        self.check_notifications_button.clicked.connect(self.check_and_send_notifications)
+        self.check_notifications_button.clicked.connect(
+            self.check_and_send_notifications
+        )
         button_layout.addWidget(self.check_notifications_button)
 
         self.mark_triggered_button = QPushButton("Mark as Triggered")
@@ -100,17 +138,22 @@ class NotificationsRemindersScreen(QWidget):
             QMessageBox.warning(self, "No Reminder Selected", "Select one first.")
             return
         rem_id = int(self.reminders_table.item(row, 0).text())
-        minutes, ok = QInputDialog.getInt(self, "Snooze", "Snooze by how many minutes?", 15, 1, 720)
+        minutes, ok = QInputDialog.getInt(
+            self, "Snooze", "Snooze by how many minutes?", 15, 1, 720
+        )
         if not ok:
             return
         new_dt = datetime.now() + timedelta(minutes=minutes)
         conn = _connect()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE reminders
                SET reminder_time = ?, reminder_status = 'Pending'
              WHERE reminder_id = ?
-        """, (new_dt.strftime("%Y-%m-%d %H:%M:%S"), rem_id))
+        """,
+            (new_dt.strftime("%Y-%m-%d %H:%M:%S"), rem_id),
+        )
         conn.commit()
         conn.close()
         self.load_reminders()
@@ -130,7 +173,7 @@ class NotificationsRemindersScreen(QWidget):
         cursor = conn.cursor()
 
         # Base query
-        query = '''
+        query = """
             SELECT 
                 r.reminder_id,
                 a.date_time AS appointment_time,
@@ -148,7 +191,7 @@ class NotificationsRemindersScreen(QWidget):
             FROM reminders r
             JOIN appointments a ON r.appointment_id = a.appointment_id
             JOIN patients p ON a.patient_id = p.patient_id
-        '''
+        """
         params = []
 
         # Filter for today's reminders if not showing all
@@ -166,15 +209,18 @@ class NotificationsRemindersScreen(QWidget):
         for row_index, row_data in enumerate(reminders):
             self.reminders_table.insertRow(row_index)
             for col_index, col_data in enumerate(row_data):
-                self.reminders_table.setItem(row_index, col_index, QTableWidgetItem(str(col_data)))
+                self.reminders_table.setItem(
+                    row_index, col_index, QTableWidgetItem(str(col_data))
+                )
 
     def check_and_send_notifications(self):
         """Check & send notifications for pending reminders (appointments + invoices)."""
         # ðŸ‴ Hard stop if emails are disabled (prevents any SMTP attempts)
         if not ENABLE_EMAILS:
             QMessageBox.information(
-                self, "Emails Disabled",
-                "Outgoing emails are currently disabled (ENABLE_EMAILS=0). No notifications will be sent."
+                self,
+                "Emails Disabled",
+                "Outgoing emails are currently disabled (ENABLE_EMAILS=0). No notifications will be sent.",
             )
             return
 
@@ -183,7 +229,8 @@ class NotificationsRemindersScreen(QWidget):
         cursor = conn.cursor()
 
         # Fetch all pending reminders up to now
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT r.reminder_id,
                    r.appointment_id,
                    r.reminder_time,
@@ -197,11 +244,21 @@ class NotificationsRemindersScreen(QWidget):
               JOIN patients p     ON a.patient_id   = p.patient_id
              WHERE r.reminder_time <= ?
                AND r.reminder_status = 'Pending'
-        ''', (now,))
+        """,
+            (now,),
+        )
         reminders = cursor.fetchall()
 
-        for (rem_id, appt_id, rem_time, rem_reason,
-             owner_email, owner_name, appt_type, appt_reason) in reminders:
+        for (
+            rem_id,
+            appt_id,
+            rem_time,
+            rem_reason,
+            owner_email,
+            owner_name,
+            appt_type,
+            appt_reason,
+        ) in reminders:
 
             if not owner_email:
                 print(f"No email for {owner_name}, skipping.")
@@ -222,7 +279,8 @@ class NotificationsRemindersScreen(QWidget):
             # If this is an *invoice* reminder (by convention)
             if rem_reason.lower().startswith("invoice"):
                 # Look up invoice status & remaining balance
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT final_amount - COALESCE((
                         SELECT SUM(amount_paid)
                           FROM payment_history
@@ -231,17 +289,22 @@ class NotificationsRemindersScreen(QWidget):
                     payment_status
                       FROM invoices i
                      WHERE i.appointment_id = ?
-                ''', (appt_id,))
+                """,
+                    (appt_id,),
+                )
                 row = cursor.fetchone()
                 if row:
                     remaining, pay_stat = row
                     # If already paid, mark this reminder Sent and skip
                     if pay_stat == "Paid" or remaining <= 0:
-                        cursor.execute('''
+                        cursor.execute(
+                            """
                             UPDATE reminders
                                SET reminder_status = 'Sent'
                              WHERE reminder_id = ?
-                        ''', (rem_id,))
+                        """,
+                            (rem_id,),
+                        )
                         continue
 
                     # Otherwise override email content
@@ -257,11 +320,14 @@ class NotificationsRemindersScreen(QWidget):
             # Send the email (this won't be reached if ENABLE_EMAILS is False)
             sent = send_email(owner_email, subject, message)
             if sent:
-                cursor.execute('''
+                cursor.execute(
+                    """
                     UPDATE reminders
                        SET reminder_status = 'Sent'
                      WHERE reminder_id = ?
-                ''', (rem_id,))
+                """,
+                    (rem_id,),
+                )
 
         conn.commit()
         conn.close()
@@ -271,17 +337,24 @@ class NotificationsRemindersScreen(QWidget):
         """Mark selected reminder as triggered."""
         selected_row = self.reminders_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "No Reminder Selected", "Please select a reminder to mark as triggered.")
+            QMessageBox.warning(
+                self,
+                "No Reminder Selected",
+                "Please select a reminder to mark as triggered.",
+            )
             return
 
         reminder_id = int(self.reminders_table.item(selected_row, 0).text())
         conn = _connect()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             UPDATE reminders
             SET reminder_status = ?
             WHERE reminder_id = ?
-        ''', ('Triggered', reminder_id))
+        """,
+            ("Triggered", reminder_id),
+        )
         conn.commit()
         conn.close()
 
@@ -292,23 +365,28 @@ class NotificationsRemindersScreen(QWidget):
         """Delete selected reminder."""
         selected_row = self.reminders_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "No Reminder Selected", "Please select a reminder to delete.")
+            QMessageBox.warning(
+                self, "No Reminder Selected", "Please select a reminder to delete."
+            )
             return
 
         reminder_id = int(self.reminders_table.item(selected_row, 0).text())
-        reply = QMessageBox.question(self, "Delete Confirmation", "Are you sure you want to delete this reminder?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                     QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Delete Confirmation",
+            "Are you sure you want to delete this reminder?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
 
         if reply == QMessageBox.StandardButton.Yes:
             conn = _connect()
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM reminders WHERE reminder_id = ?', (reminder_id,))
+            cursor.execute(
+                "DELETE FROM reminders WHERE reminder_id = ?", (reminder_id,)
+            )
             conn.commit()
             conn.close()
 
             QMessageBox.information(self, "Success", "Reminder deleted successfully.")
             self.load_reminders()
-
-
-

@@ -2,9 +2,18 @@
 
 import sqlite3
 from hashlib import sha256
-from PySide6.QtWidgets import ( QDialog, QFormLayout, QLineEdit, QPushButton, QMessageBox, QVBoxLayout
+
+from PySide6.QtWidgets import (
+    QDialog,
+    QFormLayout,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
+
 from db import connect as _connect
+
 
 class ChangeMyPasswordDialog(QDialog):
     def __init__(self, username):
@@ -52,7 +61,10 @@ class ChangeMyPasswordDialog(QDialog):
         conn = _connect()
         cur = conn.cursor()
         hashed_old = sha256(old.encode()).hexdigest()
-        cur.execute("SELECT user_id FROM users WHERE username=? AND password=?", (self.username, hashed_old))
+        cur.execute(
+            "SELECT user_id FROM users WHERE username=? AND password=?",
+            (self.username, hashed_old),
+        )
         result = cur.fetchone()
 
         if not result:
@@ -61,12 +73,11 @@ class ChangeMyPasswordDialog(QDialog):
             return
 
         new_hash = sha256(new.encode()).hexdigest()
-        cur.execute("UPDATE users SET password=? WHERE username=?", (new_hash, self.username))
+        cur.execute(
+            "UPDATE users SET password=? WHERE username=?", (new_hash, self.username)
+        )
         conn.commit()
         conn.close()
 
         QMessageBox.information(self, "Success", "Password updated successfully.")
         self.accept()
-
-
-

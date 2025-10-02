@@ -1,24 +1,35 @@
-import sys
-import traceback
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
-    QLabel, QStackedWidget, QPushButton, QMessageBox, QStatusBar,
-    QDialog, QDialogButtonBox
+
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QStackedWidget,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QPixmap, QAction
-from patient_management import PatientManagementScreen
+
+
 from appointment_scheduling import AppointmentSchedulingScreen
-from notifications_reminders import NotificationsRemindersScreen
-from daily_appointments_calendar import DailyAppointmentsCalendar
+from backup import DB_PATH, backup_now, resource_path
 from billing_invoicing import BillingInvoicingScreen
+from daily_appointments_calendar import DailyAppointmentsCalendar
 from error_log_viewer import ErrorLogViewer
 from logger import log_error
-from user_management import UserManagementScreen
-from user_password_dialog import ChangeMyPasswordDialog
+from notifications_reminders import NotificationsRemindersScreen
+from patient_management import PatientManagementScreen
 from reports import ZReportWidget
 from reports_analytics import ReportsAnalyticsScreen
-from backup import backup_now, resource_path, DB_PATH
+from user_management import UserManagementScreen
+from user_password_dialog import ChangeMyPasswordDialog
+from version import APP_VERSION, CHANNEL
 
 
 # Optional modules with graceful fallbacks
@@ -26,32 +37,39 @@ try:
     from inventory_management import InventoryManagementScreen
 except Exception as e:
     log_error(f"Inventory import failed: {e}")
+
     class InventoryManagementScreen(QLabel):
         def __init__(self):
             super().__init__("⚠ï¸ Inventory module failed to load")
+
 
 try:
     from prescription_management import PrescriptionManagementScreen
 except Exception as e:
     log_error(f"Prescription import failed: {e}")
+
     class PrescriptionManagementScreen(QLabel):
         def __init__(self):
             super().__init__("⚠ï¸ Prescription module failed to load")
+
 
 # NEW: Medical Records (Visits) import with fallback
 try:
     from medical_records import MedicalRecordsScreen
 except Exception as e:
     log_error(f"Medical Records import failed: {e}")
+
     class MedicalRecordsScreen(QLabel):
         def __init__(self):
             super().__init__("ðŸ—'ï¸ Medical Records (Visits) screen not available")
+
 
 # NEW: Consent Forms import with fallback
 try:
     from consent_forms import ConsentFormsScreen
 except Exception as e:
     log_error(f"Consent Forms import failed: {e}")
+
     class ConsentFormsScreen(QLabel):
         def __init__(self):
             super().__init__("📠Consent Forms screen not available")
@@ -94,6 +112,44 @@ class AboutDialog(QDialog):
         lay.addWidget(btns)
 
 
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About PetCareSuite Desktop")
+        self.setModal(True)
+
+        lay = QVBoxLayout(self)
+
+        # Logo
+        logo = QLabel()
+        pix = QPixmap(resource_path("assets/petcaresuite_icon_256.png"))
+        if not pix.isNull():
+            logo.setPixmap(pix.scaledToHeight(96, Qt.SmoothTransformation))
+            logo.setAlignment(Qt.AlignCenter)
+            lay.addWidget(logo)
+
+        # Text
+        info = QLabel(
+            f"<b>PetCareSuite Desktop</b><br>"
+            f"Version {APP_VERSION} ({CHANNEL})<br>"
+            "© Valkon Solutions"
+        )
+
+        info.setAlignment(Qt.AlignCenter)
+        lay.addWidget(info)
+
+        # Environment details (useful for support)
+        env = QLabel(f"<small>Database: {DB_PATH}</small>")
+        env.setAlignment(Qt.AlignCenter)
+        env.setStyleSheet("color:#6b7280;")
+        lay.addWidget(env)
+
+        # Close button
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(self.reject)
+        lay.addWidget(btns)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -104,51 +160,49 @@ class MainWindow(QMainWindow):
         self.logged_in_username = None
 
         # Sidebar buttons
-        self.patient_button         = QPushButton("Patient Management")
-        self.appointment_button     = QPushButton("Appointment Scheduling")
-        self.billing_button         = QPushButton("Billing & Invoicing")
-        self.inventory_button       = QPushButton("Inventory Management")
-        self.prescription_button    = QPushButton("Prescription Management")
+        self.patient_button = QPushButton("Patient Management")
+        self.appointment_button = QPushButton("Appointment Scheduling")
+        self.billing_button = QPushButton("Billing & Invoicing")
+        self.inventory_button = QPushButton("Inventory Management")
+        self.prescription_button = QPushButton("Prescription Management")
         self.medical_records_button = QPushButton("Medical Records")
-        self.consent_button         = QPushButton("Consent Forms")
-        self.notifications_button   = QPushButton("Notifications & Reminders")
-        self.basic_reports_button   = QPushButton("Reports")
-        self.analytics_button       = QPushButton("Analytics & Reports")
-        self.user_mgmt_button       = QPushButton("User Management")
-        self.my_account_button      = QPushButton("My Account")
-        self.error_log_button       = QPushButton("View Error Logs")
-        self.backup_button          = QPushButton("Backup now")
-        self.fullscreen_button      = QPushButton("Exit Full Screen")
-
-
+        self.consent_button = QPushButton("Consent Forms")
+        self.notifications_button = QPushButton("Notifications & Reminders")
+        self.basic_reports_button = QPushButton("Reports")
+        self.analytics_button = QPushButton("Analytics & Reports")
+        self.user_mgmt_button = QPushButton("User Management")
+        self.my_account_button = QPushButton("My Account")
+        self.error_log_button = QPushButton("View Error Logs")
+        self.backup_button = QPushButton("Backup now")
+        self.fullscreen_button = QPushButton("Exit Full Screen")
 
         # Screens (instantiate early so we can wire signals)
-        self.patient_screen        = PatientManagementScreen()
-        self.appointment_screen    = AppointmentSchedulingScreen()
-        self.billing_screen        = BillingInvoicingScreen()
-        self.inventory_screen      = InventoryManagementScreen()
-        self.prescription_screen   = PrescriptionManagementScreen()
-        self.medical_records_screen= MedicalRecordsScreen()      # NEW
-        self.consent_screen        = ConsentFormsScreen()        # NEW
-        self.notifications_screen  = NotificationsRemindersScreen()
-        self.reports_screen        = ZReportWidget()
-        self.analytics_screen      = ReportsAnalyticsScreen()
-        self.user_mgmt_screen      = UserManagementScreen()
+        self.patient_screen = PatientManagementScreen()
+        self.appointment_screen = AppointmentSchedulingScreen()
+        self.billing_screen = BillingInvoicingScreen()
+        self.inventory_screen = InventoryManagementScreen()
+        self.prescription_screen = PrescriptionManagementScreen()
+        self.medical_records_screen = MedicalRecordsScreen()  # NEW
+        self.consent_screen = ConsentFormsScreen()  # NEW
+        self.notifications_screen = NotificationsRemindersScreen()
+        self.reports_screen = ZReportWidget()
+        self.analytics_screen = ReportsAnalyticsScreen()
+        self.user_mgmt_screen = UserManagementScreen()
 
         # Stacked widget (NOTE: index order must match button handlers below)
         self.stacked = QStackedWidget()
         for screen in (
-            self.patient_screen,          # 0
-            self.appointment_screen,      # 1
-            self.billing_screen,          # 2
-            self.inventory_screen,        # 3
-            self.prescription_screen,     # 4
+            self.patient_screen,  # 0
+            self.appointment_screen,  # 1
+            self.billing_screen,  # 2
+            self.inventory_screen,  # 3
+            self.prescription_screen,  # 4
             self.medical_records_screen,  # 5
-            self.consent_screen,          # 6
-            self.notifications_screen,    # 7
-            self.reports_screen,          # 8
-            self.analytics_screen,        # 9
-            self.user_mgmt_screen         # 10
+            self.consent_screen,  # 6
+            self.notifications_screen,  # 7
+            self.reports_screen,  # 8
+            self.analytics_screen,  # 9
+            self.user_mgmt_screen,  # 10
         ):
             self.stacked.addWidget(screen)
 
@@ -169,15 +223,21 @@ class MainWindow(QMainWindow):
         self.backup_button.clicked.connect(self.on_backup_now_clicked)
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
 
-
         # Sidebar layout
         sidebar_layout = QVBoxLayout()
         for w in (
-            self.patient_button, self.appointment_button, self.billing_button,
-            self.inventory_button, self.prescription_button,
-            self.medical_records_button, self.consent_button,
-            self.notifications_button, self.basic_reports_button,
-            self.analytics_button, self.user_mgmt_button, self.my_account_button
+            self.patient_button,
+            self.appointment_button,
+            self.billing_button,
+            self.inventory_button,
+            self.prescription_button,
+            self.medical_records_button,
+            self.consent_button,
+            self.notifications_button,
+            self.basic_reports_button,
+            self.analytics_button,
+            self.user_mgmt_button,
+            self.my_account_button,
         ):
             sidebar_layout.addWidget(w)
         sidebar_layout.addStretch(1)
@@ -215,12 +275,16 @@ class MainWindow(QMainWindow):
 
         # Cross-screen connections (guarded for compatibility)
         try:
-            self.patient_screen.patient_list_updated.connect(self.appointment_screen.reload_patients)
+            self.patient_screen.patient_list_updated.connect(
+                self.appointment_screen.reload_patients
+            )
         except Exception as e:
             log_error(f"Wire patient_list_updated → reload_patients failed: {e}")
 
         try:
-            self.patient_screen.patient_selected.connect(self.appointment_screen.load_patient_details)
+            self.patient_screen.patient_selected.connect(
+                self.appointment_screen.load_patient_details
+            )
             self.patient_screen.patient_selected.connect(self.handle_patient_selected)
         except Exception as e:
             log_error(f"Wire patient_selected signals failed: {e}")
@@ -228,7 +292,9 @@ class MainWindow(QMainWindow):
         # Patient → Medical Records (Visits)
         if hasattr(self.patient_screen, "create_medical_record"):
             try:
-                self.patient_screen.create_medical_record.connect(self.open_med_record_from_patient)
+                self.patient_screen.create_medical_record.connect(
+                    self.open_med_record_from_patient
+                )
             except Exception as e:
                 log_error(f"Wire create_medical_record failed: {e}")
 
@@ -249,21 +315,29 @@ class MainWindow(QMainWindow):
 
         # Appointment → Notifications pane
         try:
-            self.appointment_screen.reminders_list_updated.connect(self.notifications_screen.reload_reminders)
+            self.appointment_screen.reminders_list_updated.connect(
+                self.notifications_screen.reload_reminders
+            )
         except Exception as e:
             log_error(f"Wire reminders_list_updated → reload_reminders failed: {e}")
 
         # Appointment → Billing (single, canonical route)
         try:
-            self.appointment_screen.navigate_to_billing_signal.connect(self.navigate_to_billing_screen)
+            self.appointment_screen.navigate_to_billing_signal.connect(
+                self.navigate_to_billing_screen
+            )
         except Exception as e:
             log_error(f"Wire navigate_to_billing_signal failed: {e}")
 
         # Billing → Notifications (load reminders by invoice selection)
         try:
-            self.billing_screen.invoiceSelected.connect(self.notifications_screen.load_reminders)
+            self.billing_screen.invoiceSelected.connect(
+                self.notifications_screen.load_reminders
+            )
         except Exception as e:
-            log_error(f"Wire invoiceSelected → notifications.load_reminders failed: {e}")
+            log_error(
+                f"Wire invoiceSelected → notifications.load_reminders failed: {e}"
+            )
 
     # Helpers / plumbing
     def display_screen(self, idx: int):
@@ -281,7 +355,9 @@ class MainWindow(QMainWindow):
             self.showNormal()
         else:
             self.showFullScreen()
-        self.fullscreen_button.setText("Exit Full Screen" if self.isFullScreen() else "Full Screen")
+        self.fullscreen_button.setText(
+            "Exit Full Screen" if self.isFullScreen() else "Full Screen"
+        )
 
     def handle_patient_selected(self, pid, pname):
         self.appointment_screen.load_patient_details(pid, pname)
@@ -293,7 +369,9 @@ class MainWindow(QMainWindow):
             self.billing_screen.open_billing_for_appointment(appt_id)
         except Exception as e:
             log_error(f"open_billing_for_appointment failed: {e}")
-            QMessageBox.warning(self, "Billing", "Could not open Billing for this appointment.")
+            QMessageBox.warning(
+                self, "Billing", "Could not open Billing for this appointment."
+            )
         self.display_screen(2)
 
     def set_user_context(self, username, role):
@@ -368,7 +446,9 @@ class MainWindow(QMainWindow):
     def on_backup_now_clicked(self):
         try:
             path = backup_now()
-            QMessageBox.information(self, "Backup complete", f"Backup saved to:\n{path}")
+            QMessageBox.information(
+                self, "Backup complete", f"Backup saved to:\n{path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Backup failed", str(e))
 
@@ -386,5 +466,4 @@ class MainWindow(QMainWindow):
     def show_about_dialog(self):
         dlg = AboutDialog(self)
         dlg.exec()
-
 

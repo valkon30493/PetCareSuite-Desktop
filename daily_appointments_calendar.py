@@ -1,9 +1,18 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QCalendarWidget, QLabel)
-from PySide6.QtGui import QColor, QTextCharFormat
-from PySide6.QtCore import QDate
 import sqlite3
 
+from PySide6.QtCore import QDate
+from PySide6.QtGui import QColor, QTextCharFormat
+from PySide6.QtWidgets import (
+    QCalendarWidget,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from db import connect as _connect
+
 
 class DailyAppointmentsCalendar(QWidget):
     def __init__(self):
@@ -18,13 +27,17 @@ class DailyAppointmentsCalendar(QWidget):
         layout.addWidget(self.calendar)
 
         # Label to display the selected date
-        self.date_label = QLabel("Appointments for: " + QDate.currentDate().toString("yyyy-MM-dd"))
+        self.date_label = QLabel(
+            "Appointments for: " + QDate.currentDate().toString("yyyy-MM-dd")
+        )
         layout.addWidget(self.date_label)
 
         # Table to display appointments for the selected date
         self.appointments_table = QTableWidget()
         self.appointments_table.setColumnCount(5)
-        self.appointments_table.setHorizontalHeaderLabels(["Time", "Patient", "Owner", "Reason", "Veterinarian"])
+        self.appointments_table.setHorizontalHeaderLabels(
+            ["Time", "Patient", "Owner", "Reason", "Veterinarian"]
+        )
         layout.addWidget(self.appointments_table)
 
         self.setLayout(layout)
@@ -61,7 +74,8 @@ class DailyAppointmentsCalendar(QWidget):
         cursor = conn.cursor()
 
         # Query to fetch appointments for the selected date
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT 
                 TIME(date_time) AS time,
                 p.name AS patient_name,
@@ -72,7 +86,9 @@ class DailyAppointmentsCalendar(QWidget):
             JOIN patients p ON a.patient_id = p.patient_id
             WHERE DATE(a.date_time) = ?
             ORDER BY a.date_time
-        ''', (selected_date,))
+        """,
+            (selected_date,),
+        )
         appointments = cursor.fetchall()
         conn.close()
 
@@ -81,7 +97,6 @@ class DailyAppointmentsCalendar(QWidget):
         for row_index, appointment in enumerate(appointments):
             self.appointments_table.insertRow(row_index)
             for col_index, value in enumerate(appointment):
-                self.appointments_table.setItem(row_index, col_index, QTableWidgetItem(str(value)))
-
-
-
+                self.appointments_table.setItem(
+                    row_index, col_index, QTableWidgetItem(str(value))
+                )

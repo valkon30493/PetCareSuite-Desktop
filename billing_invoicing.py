@@ -4,34 +4,55 @@
 # All SQLite access goes through _connect() using backup.DB_PATH
 # Uses backup.LOGO_PNG for logo in PDFs (works in dev & PyInstaller builds)
 # -----------------------------------------------------------------------------
-import sys
-import os
 import csv
+import os
+import sys
 import tempfile
 from datetime import datetime
-from db import connect as _connect
 
 import win32print
 from PySide6 import QtGui
 from PySide6.QtCore import QDate, QDateTime, Qt, Signal
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QTableWidget, QTableWidgetItem, QPushButton, QLabel,
-    QLineEdit, QComboBox, QFormLayout, QHeaderView, QFileDialog,
-    QMessageBox, QSpinBox, QDialog, QDoubleSpinBox, QDateTimeEdit, QDateEdit,
-    QSizePolicy, QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QComboBox, QLineEdit, QLabel
-)
 from PySide6.QtPrintSupport import QPrinterInfo
+from PySide6.QtWidgets import (
 
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    QComboBox,
+    QDateEdit,
+    QDateTimeEdit,
+    QDialog,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Image,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
+from backup import DB_PATH, LOGO_PNG
+from db import connect as _connect
 from logger import log_error
-from backup import LOGO_PNG
-from backup import DB_PATH
 
 # Small helpers / styling
 BTN_STYLE = """
@@ -41,7 +62,6 @@ QPushButton {
   min-height: 40px;
 }
 """
-
 
 
 def _find_logo_path():
@@ -62,9 +82,12 @@ def _find_logo_path():
         return env
 
     names = [
-        "pet_wellness_logo.png", "pet_wellness_logo.jpg",
-        "clinic_logo.png", "clinic_logo.jpg",
-        "logo.png", "logo.jpg",
+        "pet_wellness_logo.png",
+        "pet_wellness_logo.jpg",
+        "clinic_logo.png",
+        "clinic_logo.jpg",
+        "logo.png",
+        "logo.jpg",
     ]
     bases = []
     if hasattr(sys, "_MEIPASS"):
@@ -106,10 +129,18 @@ class PaymentHistoryDialog(QDialog):
 
         self.payment_table = QTableWidget()
         self.payment_table.setColumnCount(4)
-        self.payment_table.setHorizontalHeaderLabels(["Payment\nDate", "Amount\nPaid", "Payment\nMethod", "Notes"])
-        self.payment_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.payment_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.payment_table.horizontalHeader().setStyleSheet("QHeaderView::section { padding:6px; height:44px; }")
+        self.payment_table.setHorizontalHeaderLabels(
+            ["Payment\nDate", "Amount\nPaid", "Payment\nMethod", "Notes"]
+        )
+        self.payment_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.payment_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.payment_table.horizontalHeader().setStyleSheet(
+            "QHeaderView::section { padding:6px; height:44px; }"
+        )
         self.payment_table.setWordWrap(True)
         layout.addWidget(self.payment_table)
 
@@ -154,7 +185,9 @@ class AddPaymentDialog(QDialog):
 
         # Method
         self.payment_method_dropdown = QComboBox()
-        self.payment_method_dropdown.addItems(["Cash", "Card", "Bank Transfer", "Online Payment", "Other"])
+        self.payment_method_dropdown.addItems(
+            ["Cash", "Card", "Bank Transfer", "Online Payment", "Other"]
+        )
         form_layout.addRow("Payment Method:", self.payment_method_dropdown)
 
         # Date/Time
@@ -195,15 +228,15 @@ class AddPaymentDialog(QDialog):
             cursor = conn.cursor()
 
             cursor.execute(
-                '''
+                """
                 INSERT INTO payment_history (invoice_id, payment_date, amount_paid, payment_method, notes)
                 VALUES (?, ?, ?, ?, ?)
-                ''',
+                """,
                 (self.invoice_id, pay_dt_str, amount_paid, payment_method, notes),
             )
 
             cursor.execute(
-                '''
+                """
                 UPDATE invoices
                    SET payment_status = CASE
                          WHEN (SELECT COALESCE(SUM(amount_paid),0)
@@ -212,7 +245,7 @@ class AddPaymentDialog(QDialog):
                        END,
                        payment_method = ?
                  WHERE invoice_id = ?
-                ''',
+                """,
                 (self.invoice_id, payment_method, self.invoice_id),
             )
 
@@ -265,10 +298,20 @@ class AppointmentPickerDialog(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         # Columns unchanged: ID | Date/Time | Pet | Owner
-        self.table.setHorizontalHeaderLabels(["Appointment\nID", "Date/\nTime", "Pet", "Owner"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setStyleSheet("QHeaderView::section { padding:6px; height:44px; }")
+
+        self.table.setHorizontalHeaderLabels(
+            ["Appointment\nID", "Date/\nTime", "Pet", "Owner"]
+        )
+        self.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.table.horizontalHeader().setStyleSheet(
+            "QHeaderView::section { padding:6px; height:44px; }"
+        )
+
         self.table.setWordWrap(True)
         self.table.itemDoubleClicked.connect(self._accept_current)
         root.addWidget(self.table)
@@ -488,7 +531,11 @@ class ItemizedBillingDialog(QDialog):
                         d,
                         discount_amount,
                         T,
-                        "B" if int(round(r * 100)) == 5 else "C" if int(round(r * 100)) == 19 else "",
+                        (
+                            "B"
+                            if int(round(r * 100)) == 5
+                            else "C" if int(round(r * 100)) == 19 else ""
+                        ),
                         self.item_id,
                     ),
                 )
@@ -510,7 +557,11 @@ class ItemizedBillingDialog(QDialog):
                         d,
                         discount_amount,
                         T,
-                        "B" if int(round(r * 100)) == 5 else "C" if int(round(r * 100)) == 19 else "",
+                        (
+                            "B"
+                            if int(round(r * 100)) == 5
+                            else "C" if int(round(r * 100)) == 19 else ""
+                        ),
                     ),
                 )
             conn.commit()
@@ -611,6 +662,70 @@ class OwnerPicker(QDialog):
             self.email_in.text().strip(),
         )
 
+
+# --- OwnerPicker dialog (new) ---
+class OwnerPicker(QDialog):
+    """Pick an owner for walk‑in sales; optional free‑text contact/email.
+    Pulls unique owners from `patients` table to reduce typos.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Owner")
+        lay = QVBoxLayout(self)
+        form = QFormLayout()
+
+        # Distinct owners from patients
+        self.owner_combo = QComboBox()
+        self.owner_combo.setEditable(True)  # allow typing new names too
+        owners = self._load_owners()
+        self.owner_combo.addItems(owners)
+        form.addRow("Owner:", self.owner_combo)
+
+        self.contact_in = QLineEdit()
+        form.addRow("Owner Contact:", self.contact_in)
+
+        self.email_in = QLineEdit()
+        form.addRow("Owner Email:", self.email_in)
+
+        lay.addLayout(form)
+
+        buttons = QHBoxLayout()
+        ok = QPushButton("Continue")
+        ok.clicked.connect(self.accept)
+        cancel = QPushButton("Cancel")
+        cancel.clicked.connect(self.reject)
+        buttons.addWidget(ok)
+        buttons.addWidget(cancel)
+        lay.addLayout(buttons)
+
+    def _load_owners(self) -> list[str]:
+        try:
+            conn = _connect()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT DISTINCT owner_name
+                  FROM patients
+                 WHERE owner_name IS NOT NULL AND TRIM(owner_name) <> ''
+                 ORDER BY owner_name
+            """
+            )
+            rows = [r[0] for r in cur.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    def get_values(self):
+        return (
+            self.owner_combo.currentText().strip(),
+            self.contact_in.text().strip(),
+            self.email_in.text().strip(),
+        )
+
+
+
 # Main Screen
 class BillingInvoicingScreen(QWidget):
     invoiceSelected = Signal(int)  # emits invoice_id
@@ -669,9 +784,15 @@ class BillingInvoicingScreen(QWidget):
                 "Created\nAt",
             ]
         )
-        self.invoice_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.invoice_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.invoice_table.horizontalHeader().setStyleSheet("QHeaderView::section { padding:6px; height:44px; }")
+        self.invoice_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.invoice_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.invoice_table.horizontalHeader().setStyleSheet(
+            "QHeaderView::section { padding:6px; height:44px; }"
+        )
         self.invoice_table.setWordWrap(True)
         self.invoice_table.itemSelectionChanged.connect(self.load_selected_invoice)
         self.invoice_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -708,8 +829,12 @@ class BillingInvoicingScreen(QWidget):
                 "Total\n(incl. VAT)",
             ]
         )
-        self.item_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.item_table.horizontalHeader().setStyleSheet("QHeaderView::section { padding:6px; height:44px; }")
+        self.item_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.item_table.horizontalHeader().setStyleSheet(
+            "QHeaderView::section { padding:6px; height:44px; }"
+        )
         self.item_table.setWordWrap(True)
         self.item_table.itemSelectionChanged.connect(self._on_item_selection)
         self.item_table.setMinimumHeight(160)
@@ -739,7 +864,11 @@ class BillingInvoicingScreen(QWidget):
 
         bottom.addWidget(QLabel("Appointment ID:"), 0, 0)
         self.appointment_id_input = QLineEdit()
-        self.appointment_id_input.setPlaceholderText("Enter Appointment ID or use Find… (optional)")
+
+        self.appointment_id_input.setPlaceholderText(
+            "Enter Appointment ID or use Find… (optional)"
+        )
+
         self.appointment_id_input.textChanged.connect(self.fetch_patient_details)
         bottom.addWidget(self.appointment_id_input, 0, 1)
 
@@ -795,13 +924,17 @@ class BillingInvoicingScreen(QWidget):
 
         bottom.addWidget(QLabel("Payment Status:"), 7, 0)
         self.payment_status_dropdown = QComboBox()
-        self.payment_status_dropdown.addItems(["Unpaid", "Partially Paid", "Paid", "N/A"])
+        self.payment_status_dropdown.addItems(
+            ["Unpaid", "Partially Paid", "Paid", "N/A"]
+        )
         self.payment_status_dropdown.setEnabled(False)
         bottom.addWidget(self.payment_status_dropdown, 7, 1)
 
         bottom.addWidget(QLabel("Payment Method:"), 8, 0)
         self.payment_method_dropdown = QComboBox()
-        self.payment_method_dropdown.addItems(["Cash", "Card", "Bank Transfer", "Online Payment", "Other"])
+        self.payment_method_dropdown.addItems(
+            ["Cash", "Card", "Bank Transfer", "Online Payment", "Other"]
+        )
         self.payment_method_dropdown.setEnabled(False)
         bottom.addWidget(self.payment_method_dropdown, 8, 1)
 
@@ -943,8 +1076,13 @@ class BillingInvoicingScreen(QWidget):
         return inv_id
 
     # NEW: walk-in invoice creation
-    def _create_walkin_invoice(self, owner_name: str, owner_contact: str, owner_email: str) -> int:
-        conn = _connect(); cur = conn.cursor()
+
+    def _create_walkin_invoice(
+        self, owner_name: str, owner_contact: str, owner_email: str
+    ) -> int:
+        conn = _connect()
+        cur = conn.cursor()
+
         cur.execute(
             """
             INSERT INTO invoices (
@@ -963,7 +1101,9 @@ class BillingInvoicingScreen(QWidget):
             (owner_name or None, owner_contact or None, owner_email or None),
         )
         inv_id = cur.lastrowid
-        conn.commit(); conn.close()
+
+        conn.commit()
+        conn.close()
         return inv_id
 
     def create_walkin_invoice(self):
@@ -972,7 +1112,11 @@ class BillingInvoicingScreen(QWidget):
             return
         owner_name, owner_contact, owner_email = dlg.get_values()
         if not owner_name:
-            QMessageBox.warning(self, "Missing Owner", "Please enter/select an owner name.")
+
+            QMessageBox.warning(
+                self, "Missing Owner", "Please enter/select an owner name."
+            )
+
             return
         try:
             inv_id = self._create_walkin_invoice(owner_name, owner_contact, owner_email)
@@ -981,10 +1125,18 @@ class BillingInvoicingScreen(QWidget):
             self.load_invoice_by_id(inv_id)
             self.add_item_button.setEnabled(True)
             self._set_owner_snapshot(owner_contact, owner_email, show=True)
-            QMessageBox.information(self, "Invoice Created", "Draft walk-in invoice created. Add items and Save.")
+
+            QMessageBox.information(
+                self,
+                "Invoice Created",
+                "Draft walk-in invoice created. Add items and Save.",
+            )
         except Exception as e:
             log_error(f"create_walkin_invoice failed: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to create walk-in invoice: {e}")
+            QMessageBox.critical(
+                self, "Error", f"Failed to create walk-in invoice: {e}"
+            )
+
 
     def _set_owner_snapshot(self, contact: str | None, email: str | None, show: bool):
         txt_parts = []
@@ -1007,9 +1159,15 @@ class BillingInvoicingScreen(QWidget):
 
         payments_enabled = payable == 1 and is_invoice
 
-        self.view_payments_button.setEnabled(payments_enabled and self.selected_invoice_id is not None)
-        self.add_payment_button.setEnabled(payments_enabled and self.selected_invoice_id is not None)
-        self.delete_payment_button.setEnabled(False if not payments_enabled else self.delete_payment_button.isEnabled())
+        self.view_payments_button.setEnabled(
+            payments_enabled and self.selected_invoice_id is not None
+        )
+        self.add_payment_button.setEnabled(
+            payments_enabled and self.selected_invoice_id is not None
+        )
+        self.delete_payment_button.setEnabled(
+            False if not payments_enabled else self.delete_payment_button.isEnabled()
+        )
 
         self.payment_status_dropdown.setEnabled(is_invoice)
         self.payment_method_dropdown.setEnabled(is_invoice)
@@ -1020,7 +1178,11 @@ class BillingInvoicingScreen(QWidget):
         self.edit_item_button.setEnabled(self.item_table.currentRow() >= 0)
         self.delete_item_button.setEnabled(self.item_table.currentRow() >= 0)
 
-        self.save_btn.setText("Save Invoice" if is_invoice else ("Save Estimate" if is_est else "Save Charity"))
+        self.save_btn.setText(
+            "Save Invoice"
+            if is_invoice
+            else ("Save Estimate" if is_est else "Save Charity")
+        )
 
     # Loading & filtering
     def load_invoices(self):
@@ -1053,7 +1215,9 @@ class BillingInvoicingScreen(QWidget):
             self.apply_filters()
         except Exception as e:
             log_error(f"Database Error in load_invoices: {e}")
-            QMessageBox.critical(self, "Database Error", f"An unexpected error occurred: {e}")
+            QMessageBox.critical(
+                self, "Database Error", f"An unexpected error occurred: {e}"
+            )
 
     def apply_filters(self):
         search = (self.search_input.text() or "").lower()
@@ -1080,13 +1244,20 @@ class BillingInvoicingScreen(QWidget):
                 created_at,
             ) = row
 
-            created_day = QDate.fromString((created_at or "").split(" ")[0], "yyyy-MM-dd")
+            created_day = QDate.fromString(
+                (created_at or "").split(" ")[0], "yyyy-MM-dd"
+            )
             if created_day.isValid():
                 if created_day < start or created_day > end:
                     continue
 
             if search:
-                if (search not in str(appt_id).lower()) and (search not in (patient_or_owner or "").lower()) and (search not in (str(owner_contact) or "").lower()):
+
+                if (
+                    (search not in str(appt_id).lower())
+                    and (search not in (patient_or_owner or "").lower())
+                    and (search not in (str(owner_contact) or "").lower())
+                ):
                     continue
 
             if status_filter == "Open" and str(status) == "Paid":
@@ -1156,7 +1327,9 @@ class BillingInvoicingScreen(QWidget):
         conn.close()
 
         if not row:
-            QMessageBox.critical(self, "Error", "Could not load invoice details from the database.")
+            QMessageBox.critical(
+                self, "Error", "Could not load invoice details from the database."
+            )
             return
 
         (
@@ -1263,7 +1436,9 @@ class BillingInvoicingScreen(QWidget):
     def edit_item(self):
         r = self.item_table.currentRow()
         if r < 0:
-            QMessageBox.warning(self, "No Item Selected", "Please select an item to edit.")
+            QMessageBox.warning(
+                self, "No Item Selected", "Please select an item to edit."
+            )
             return
         desc = self.item_table.item(r, 0).text()
 
@@ -1276,19 +1451,28 @@ class BillingInvoicingScreen(QWidget):
         row = cur.fetchone()
         conn.close()
         if not row:
-            QMessageBox.warning(self, "Error", "Could not find the selected item in the database.")
+            QMessageBox.warning(
+                self, "Error", "Could not find the selected item in the database."
+            )
             return
 
-        dlg = ItemizedBillingDialog(self.selected_invoice_id, item_id=row[0], parent=self)
+        dlg = ItemizedBillingDialog(
+            self.selected_invoice_id, item_id=row[0], parent=self
+        )
         if dlg.exec():
             self.load_invoice_items()
 
     def delete_item(self):
         r = self.item_table.currentRow()
         if r < 0:
-            QMessageBox.warning(self, "No Item Selected", "Please select an item to delete.")
+            QMessageBox.warning(
+                self, "No Item Selected", "Please select an item to delete."
+            )
             return
-        if QMessageBox.question(self, "Delete Confirmation", "Delete this item?") != QMessageBox.Yes:
+        if (
+            QMessageBox.question(self, "Delete Confirmation", "Delete this item?")
+            != QMessageBox.Yes
+        ):
             return
 
         desc = self.item_table.item(r, 0).text()
@@ -1314,10 +1498,14 @@ class BillingInvoicingScreen(QWidget):
         appt = self.appointment_id_input.text().strip()
         if not appt:
             # Walk-in: load owner snapshot from invoice
-            conn = _connect();
+
+            conn = _connect()
             cur = conn.cursor()
-            cur.execute("SELECT owner_name, owner_contact, owner_email FROM invoices WHERE invoice_id=?",
-                        (self.selected_invoice_id,))
+            cur.execute(
+                "SELECT owner_name, owner_contact, owner_email FROM invoices WHERE invoice_id=?",
+                (self.selected_invoice_id,),
+            )
+
             row = cur.fetchone()
             conn.close()
             owner_name = (row and row[0]) or ""
@@ -1349,15 +1537,22 @@ class BillingInvoicingScreen(QWidget):
             self._set_owner_snapshot(None, None, show=False)
         else:
             # fallback to owner if appt id invalid
-            conn = _connect();
+
+            conn = _connect()
             cur = conn.cursor()
-            cur.execute("SELECT owner_name FROM invoices WHERE invoice_id=?", (self.selected_invoice_id,))
+            cur.execute(
+                "SELECT owner_name, owner_contact, owner_email FROM invoices WHERE invoice_id=?",
+                (self.selected_invoice_id,),
+            )
             r2 = cur.fetchone()
             conn.close()
-            self.patient_name_label.setText((r2 and r2[0]) or "")
             self.date_label.clear()
             self.add_item_button.setEnabled(True)
-            self._set_owner_snapshot((r2 and r2[1]) or "", (r2 and r2[2]) or "", show=True)
+            name, contact, email = r2 or ("", "", "")
+            self._set_owner_snapshot(
+                name or "", f"{contact or ''}", f"{email or ''}", show=True
+            )
+
 
     # Create docs
     def create_invoice(self):
@@ -1367,8 +1562,13 @@ class BillingInvoicingScreen(QWidget):
             self._find_appointment()
             appt = self.appointment_id_input.text().strip()
             if not appt:
-                QMessageBox.information(self, "No Appointment",
-                                        "Please select an appointment to create an invoice.")
+
+                QMessageBox.information(
+                    self,
+                    "No Appointment",
+                    "Please select an appointment to create an invoice.",
+                )
+
                 return
         try:
             conn = _connect()
@@ -1380,7 +1580,9 @@ class BillingInvoicingScreen(QWidget):
             if cur.fetchone():
                 conn.close()
                 QMessageBox.information(
-                    self, "Invoice Exists", "An invoice already exists for this appointment. Loading it."
+                    self,
+                    "Invoice Exists",
+                    "An invoice already exists for this appointment. Loading it.",
                 )
                 conn = _connect()
                 cur = conn.cursor()
@@ -1415,7 +1617,9 @@ class BillingInvoicingScreen(QWidget):
             conn.commit()
             conn.close()
 
-            QMessageBox.information(self, "Invoice Created", "Draft invoice created. You can now add items.")
+            QMessageBox.information(
+                self, "Invoice Created", "Draft invoice created. You can now add items."
+            )
             self._opened_from_appointments = False
             self.new_invoice_btn.setEnabled(True)
             self.load_invoice_by_id(new_id)
@@ -1431,16 +1635,28 @@ class BillingInvoicingScreen(QWidget):
                 self._find_appointment()
                 appt = self.appointment_id_input.text().strip()
                 if not appt:
-                    QMessageBox.information(self, "No Appointment",
-                                            "Please select an appointment to create an estimate.")
+
+                    QMessageBox.information(
+                        self,
+                        "No Appointment",
+                        "Please select an appointment to create an estimate.",
+                    )
+
                     return
 
             conn = _connect()
             cur = conn.cursor()
-            cur.execute("SELECT invoice_id FROM invoices WHERE appointment_id=? AND invoice_type='ESTIMATE'", (appt,))
+            cur.execute(
+                "SELECT invoice_id FROM invoices WHERE appointment_id=? AND invoice_type='ESTIMATE'",
+                (appt,),
+            )
             if cur.fetchone():
                 conn.close()
-                QMessageBox.information(self, "Already Exists", f"An ESTIMATE already exists for appointment {appt}.")
+                QMessageBox.information(
+                    self,
+                    "Already Exists",
+                    f"An ESTIMATE already exists for appointment {appt}.",
+                )
                 return
 
             cur.execute(
@@ -1465,7 +1681,9 @@ class BillingInvoicingScreen(QWidget):
             conn.close()
 
             QMessageBox.information(
-                self, "Estimate Created", "Draft estimate created. Add items and print/share as needed."
+                self,
+                "Estimate Created",
+                "Draft estimate created. Add items and print/share as needed.",
             )
             self.load_invoice_by_id(new_id)
 
@@ -1480,16 +1698,28 @@ class BillingInvoicingScreen(QWidget):
                 self._find_appointment()
                 appt = self.appointment_id_input.text().strip()
                 if not appt:
-                    QMessageBox.information(self, "No Appointment",
-                                            "Please select an appointment to create a charity doc.")
+
+                    QMessageBox.information(
+                        self,
+                        "No Appointment",
+                        "Please select an appointment to create a charity doc.",
+                    )
+
                     return
 
             conn = _connect()
             cur = conn.cursor()
-            cur.execute("SELECT invoice_id FROM invoices WHERE appointment_id=? AND invoice_type='CHARITY'", (appt,))
+            cur.execute(
+                "SELECT invoice_id FROM invoices WHERE appointment_id=? AND invoice_type='CHARITY'",
+                (appt,),
+            )
             if cur.fetchone():
                 conn.close()
-                QMessageBox.information(self, "Already Exists", f"A CHARITY doc already exists for appointment {appt}.")
+                QMessageBox.information(
+                    self,
+                    "Already Exists",
+                    f"A CHARITY doc already exists for appointment {appt}.",
+                )
                 return
 
             cur.execute(
@@ -1522,13 +1752,17 @@ class BillingInvoicingScreen(QWidget):
 
         except Exception as e:
             log_error(f"Error in create_charity: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to create charity document: {e}")
+            QMessageBox.critical(
+                self, "Error", f"Failed to create charity document: {e}"
+            )
 
 
     # Save / inventory deduction
     def edit_invoice(self):
         if not self.selected_invoice_id:
-            QMessageBox.warning(self, "No Document", "Please select a document to save.")
+            QMessageBox.warning(
+                self, "No Document", "Please select a document to save."
+            )
             return
 
         # CHANGED: appointment is optional
@@ -1553,7 +1787,11 @@ class BillingInvoicingScreen(QWidget):
                 conn.close()
                 QMessageBox.warning(self, "Not Found", "Document not found.")
                 return
-            doc_type, payable_flag, already_deducted = row[0], int(row[1] or 0), int(row[2] or 0)
+            doc_type, payable_flag, already_deducted = (
+                row[0],
+                int(row[1] or 0),
+                int(row[2] or 0),
+            )
 
             # CHANGED: update with nullable appointment_id
             cur.execute(
@@ -1580,7 +1818,12 @@ class BillingInvoicingScreen(QWidget):
             )
 
             # items rewrite (unchanged)
-            cur.execute("DELETE FROM invoice_items WHERE invoice_id = ?", (self.selected_invoice_id,))
+
+            cur.execute(
+                "DELETE FROM invoice_items WHERE invoice_id = ?",
+                (self.selected_invoice_id,),
+            )
+
             for r in range(self.item_table.rowCount()):
                 desc = self.item_table.item(r, 0).text().strip()
                 qty = int(float(self.item_table.item(r, 1).text()))
@@ -1590,7 +1833,9 @@ class BillingInvoicingScreen(QWidget):
                 total = float(self.item_table.item(r, 5).text())
 
                 base_before_disc = unit_net * qty
-                disc_frac = 0.0 if base_before_disc <= 0 else (disc_amt / base_before_disc)
+                disc_frac = (
+                    0.0 if base_before_disc <= 0 else (disc_amt / base_before_disc)
+                )
                 net_after_disc = base_before_disc - disc_amt
                 vat_frac = 0.0 if net_after_disc <= 0 else (vat_amt / net_after_disc)
                 rate = int(round(vat_frac * 100))
@@ -1619,8 +1864,15 @@ class BillingInvoicingScreen(QWidget):
                 )
 
             # inventory (unchanged)
-            if str(doc_type).upper() in ("INVOICE", "CHARITY") and already_deducted == 0:
-                reason_prefix = f"Dispensed via {str(doc_type).title()} #{self.selected_invoice_id}"
+
+            if (
+                str(doc_type).upper() in ("INVOICE", "CHARITY")
+                and already_deducted == 0
+            ):
+                reason_prefix = (
+                    f"Dispensed via {str(doc_type).title()} #{self.selected_invoice_id}"
+                )
+
                 for r in range(self.item_table.rowCount()):
                     desc = self.item_table.item(r, 0).text().strip()
                     qty = int(float(self.item_table.item(r, 1).text()))
@@ -1663,7 +1915,9 @@ class BillingInvoicingScreen(QWidget):
                 )
 
             conn.commit()
-            self.update_payment_status_and_balance(self.selected_invoice_id, final_amount)
+            self.update_payment_status_and_balance(
+                self.selected_invoice_id, final_amount
+            )
 
             QMessageBox.information(self, "Saved", "Document saved successfully.")
             self.load_invoices()
@@ -1672,7 +1926,9 @@ class BillingInvoicingScreen(QWidget):
         except Exception as e:
             if conn:
                 conn.rollback()
-            log_error(f"Save #{getattr(self, 'selected_invoice_id', 'N/A')} failed: {e}")
+            log_error(
+                f"Save #{getattr(self, 'selected_invoice_id', 'N/A')} failed: {e}"
+            )
             QMessageBox.critical(self, "Error", f"Unexpected error: {e}")
         finally:
             if conn:
@@ -1702,7 +1958,9 @@ class BillingInvoicingScreen(QWidget):
         itype, already_deducted = str(row[0] or ""), int(row[1] or 0)
         if itype.upper() != "ESTIMATE":
             conn.close()
-            QMessageBox.information(self, "Not an Estimate", "Only estimates can be converted.")
+            QMessageBox.information(
+                self, "Not an Estimate", "Only estimates can be converted."
+            )
             return
 
         if (
@@ -1749,7 +2007,9 @@ class BillingInvoicingScreen(QWidget):
                     if q <= 0:
                         continue
 
-                    cur.execute("SELECT item_id FROM items WHERE name=?", (str(desc).strip(),))
+                    cur.execute(
+                        "SELECT item_id FROM items WHERE name=?", (str(desc).strip(),)
+                    )
                     rec = cur.fetchone()
                     if not rec:
                         continue
@@ -1786,20 +2046,30 @@ class BillingInvoicingScreen(QWidget):
         finally:
             conn.close()
 
-        QMessageBox.information(self, "Converted", "Estimate converted to Invoice successfully.")
+        QMessageBox.information(
+            self, "Converted", "Estimate converted to Invoice successfully."
+        )
         self.load_invoices()
         self.load_selected_invoice()
 
     # Payments & reminders
     def view_payment_history(self):
         if not self.selected_invoice_id:
-            QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice to view payment history.")
+            QMessageBox.warning(
+                self,
+                "No Invoice Selected",
+                "Please select an invoice to view payment history.",
+            )
             return
         PaymentHistoryDialog(self.selected_invoice_id, self).exec()
 
     def add_payment(self):
         if not self.selected_invoice_id:
-            QMessageBox.warning(self, "No Invoice Selected", "Please select a document to add a payment.")
+            QMessageBox.warning(
+                self,
+                "No Invoice Selected",
+                "Please select a document to add a payment.",
+            )
             return
 
         conn = _connect()
@@ -1835,7 +2105,9 @@ class BillingInvoicingScreen(QWidget):
         conn.close()
 
         if remaining <= 0:
-            QMessageBox.information(self, "No Balance", "This invoice is already fully paid.")
+            QMessageBox.information(
+                self, "No Balance", "This invoice is already fully paid."
+            )
             return
 
         dlg = AddPaymentDialog(self.selected_invoice_id, remaining, self)
@@ -1880,12 +2152,17 @@ class BillingInvoicingScreen(QWidget):
 
     def send_invoice_reminder(self):
         if not self.selected_invoice_id:
-            QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice first.")
+            QMessageBox.warning(
+                self, "No Invoice Selected", "Please select an invoice first."
+            )
             return
         appt_txt = self.appointment_id_input.text().strip()
         if not appt_txt.isdigit():
-            QMessageBox.information(self, "No Appointment", "Reminders require an appointment.")
+            QMessageBox.information(
+                self, "No Appointment", "Reminders require an appointment."
+            )
             return
+
         appt_id = int(appt_txt)
         dlg = InvoiceReminderDialog(self.selected_invoice_id, self)
         if dlg.exec() != QDialog.Accepted:
@@ -1903,24 +2180,32 @@ class BillingInvoicingScreen(QWidget):
         conn.commit()
         conn.close()
         QMessageBox.information(
-            self, "Reminder Scheduled", f"Payment reminder set for {rem_time}.\nReason: {reason}"
+            self,
+            "Reminder Scheduled",
+            f"Payment reminder set for {rem_time}.\nReason: {reason}",
         )
 
     # Delete
     def delete_invoice(self):
         if not self.selected_invoice_id:
-            QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice to delete.")
+            QMessageBox.warning(
+                self, "No Invoice Selected", "Please select an invoice to delete."
+            )
             return
         if (
             QMessageBox.question(
-                self, "Delete Confirmation", "Are you sure you want to delete this invoice?"
+                self,
+                "Delete Confirmation",
+                "Are you sure you want to delete this invoice?",
             )
             != QMessageBox.Yes
         ):
             return
         conn = _connect()
         cur = conn.cursor()
-        cur.execute("DELETE FROM invoices WHERE invoice_id = ?", (self.selected_invoice_id,))
+        cur.execute(
+            "DELETE FROM invoices WHERE invoice_id = ?", (self.selected_invoice_id,)
+        )
         conn.commit()
         conn.close()
         QMessageBox.information(self, "Success", "Invoice deleted successfully.")
@@ -1937,13 +2222,18 @@ class BillingInvoicingScreen(QWidget):
         inv_id = self.selected_invoice_id
 
         # Owner & pet
-        appt_id = int(self.appointment_id_input.text() or 0) if (
-                self.appointment_id_input.text() or "").isdigit() else None
-        owner_name = "";
-        owner_contact = "";
+
+        appt_id = (
+            int(self.appointment_id_input.text() or 0)
+            if (self.appointment_id_input.text() or "").isdigit()
+            else None
+        )
+        owner_name = ""
+        owner_contact = ""
         pet_name = ""
         if appt_id:
-            conn = _connect();
+            conn = _connect()
+
             cur = conn.cursor()
             cur.execute(
                 """
@@ -1958,7 +2248,8 @@ class BillingInvoicingScreen(QWidget):
             conn.close()
         else:
             # walk-in: pull snapshot from invoices
-            conn = _connect();
+
+            conn = _connect()
             cur = conn.cursor()
             cur.execute(
                 "SELECT owner_name, owner_contact FROM invoices WHERE invoice_id=?",
@@ -2007,12 +2298,19 @@ class BillingInvoicingScreen(QWidget):
             net = float(total or 0) - float(v_amt or 0)
             net_excl_vat += net
             vat_total += float(v_amt or 0)
-            grp = grouping.setdefault(v_pct, {"net": 0.0, "vat_amount": 0.0, "flag": v_flag})
+            grp = grouping.setdefault(
+                v_pct, {"net": 0.0, "vat_amount": 0.0, "flag": v_flag}
+            )
             grp["net"] += net
             grp["vat_amount"] += float(v_amt or 0)
 
         vat_breakdown = [
-            {"vat_pct": rate, "net": data["net"], "vat_amount": data["vat_amount"], "flag": data["flag"]}
+            {
+                "vat_pct": rate,
+                "net": data["net"],
+                "vat_amount": data["vat_amount"],
+                "flag": data["flag"],
+            }
             for rate, data in grouping.items()
         ]
 
@@ -2028,7 +2326,12 @@ class BillingInvoicingScreen(QWidget):
             """,
             (inv_id,),
         )
-        disc_pct, final_total, doc_type, status = cur.fetchone() or (0.0, 0.0, "INVOICE", "Unpaid")
+        disc_pct, final_total, doc_type, status = cur.fetchone() or (
+            0.0,
+            0.0,
+            "INVOICE",
+            "Unpaid",
+        )
 
         cur.execute(
             "SELECT COALESCE(SUM(amount_paid),0) FROM payment_history WHERE invoice_id = ?",
@@ -2103,11 +2406,17 @@ class BillingInvoicingScreen(QWidget):
             try:
                 if is_a4:
                     self._generate_pdf_a4(
-                        path=path, created_date=created_date, created_time=created_time, **payload
+                        path=path,
+                        created_date=created_date,
+                        created_time=created_time,
+                        **payload,
                     )
                 else:
                     self._generate_pdf_thermal(
-                        path=path, created_date=created_date, created_time=created_time, **payload
+                        path=path,
+                        created_date=created_date,
+                        created_time=created_time,
+                        **payload,
                     )
                 QMessageBox.information(self, "Saved", f"Invoice saved to:\n{path}")
             except Exception as e:
@@ -2119,15 +2428,23 @@ class BillingInvoicingScreen(QWidget):
         )
         if is_a4:
             self._generate_pdf_a4(
-                path=tmp_path, created_date=created_date, created_time=created_time, **payload
+                path=tmp_path,
+                created_date=created_date,
+                created_time=created_time,
+                **payload,
             )
             try:
                 os.startfile(tmp_path, "print")
             except Exception as e:
-                QMessageBox.critical(self, "Print Error", f"Couldn't send to the default printer:\n{e}")
+                QMessageBox.critical(
+                    self, "Print Error", f"Couldn't send to the default printer:\n{e}"
+                )
         else:
             self._generate_pdf_thermal(
-                path=tmp_path, created_date=created_date, created_time=created_time, **payload
+                path=tmp_path,
+                created_date=created_date,
+                created_time=created_time,
+                **payload,
             )
             thermal_name = None
             for pi in QPrinterInfo.availablePrinters():
@@ -2139,7 +2456,7 @@ class BillingInvoicingScreen(QWidget):
                 QMessageBox.warning(
                     self,
                     "Printer Not Found",
-                    "Could not find your thermal printer. Ensure its driver is installed and the name contains Thermal Epson"
+                    "Could not find your thermal printer. Ensure its driver is installed and the name contains Thermal Epson",
                 )
                 return
             original = win32print.GetDefaultPrinter()
@@ -2193,13 +2510,25 @@ class BillingInvoicingScreen(QWidget):
 
         # Clinic header
         elems.append(Paragraph("PET WELLNESS VETS", styles["Title"]))
-        elems.append(Paragraph("Kyriakou Adamou no.2, Shop 2&3, 8220", styles["Normal"]))
-        elems.append(Paragraph("Tel: 99941186   Email: contact@petwellnessvets.com", styles["Normal"]))
+        elems.append(
+            Paragraph("Kyriakou Adamou no.2, Shop 2&3, 8220", styles["Normal"])
+        )
+        elems.append(
+            Paragraph(
+                "Tel: 99941186   Email: contact@petwellnessvets.com", styles["Normal"]
+            )
+        )
         elems.append(Spacer(1, 3 * mm))
 
         # Title
-        title_map = {"INVOICE": "INVOICE", "ESTIMATE": "ESTIMATE", "CHARITY": "CHARITY / PRO BONO"}
-        elems.append(Paragraph(title_map.get(str(doc_type).upper(), "INVOICE"), styles["Title"]))
+        title_map = {
+            "INVOICE": "INVOICE",
+            "ESTIMATE": "ESTIMATE",
+            "CHARITY": "CHARITY / PRO BONO",
+        }
+        elems.append(
+            Paragraph(title_map.get(str(doc_type).upper(), "INVOICE"), styles["Title"])
+        )
         elems.append(Spacer(1, 2 * mm))
 
         # Meta
@@ -2209,7 +2538,14 @@ class BillingInvoicingScreen(QWidget):
             ["Pet:", pet_name, "", ""],
         ]
         meta_tbl = Table(meta, colWidths=[cw * 0.20, cw * 0.30, cw * 0.20, cw * 0.30])
-        meta_tbl.setStyle(TableStyle([["FONTSIZE", (0, 0), (-1, -1), 7], ["BOTTOMPADDING", (0, 0), (-1, -1), 2]]))
+        meta_tbl.setStyle(
+            TableStyle(
+                [
+                    ["FONTSIZE", (0, 0), (-1, -1), 7],
+                    ["BOTTOMPADDING", (0, 0), (-1, -1), 2],
+                ]
+            )
+        )
         elems += [meta_tbl, Spacer(1, 3 * mm)]
 
         # Items
@@ -2227,7 +2563,14 @@ class BillingInvoicingScreen(QWidget):
             )
         itbl = Table(
             data,
-            colWidths=[cw * 0.40, cw * 0.10, cw * 0.15, cw * 0.10, cw * 0.15, cw * 0.10],
+            colWidths=[
+                cw * 0.40,
+                cw * 0.10,
+                cw * 0.15,
+                cw * 0.10,
+                cw * 0.15,
+                cw * 0.10,
+            ],
         )
         itbl.setStyle(
             TableStyle(
@@ -2277,7 +2620,9 @@ class BillingInvoicingScreen(QWidget):
             ["Gross Subtotal (Incl. VAT):", f"€{gross_subtotal:.2f}"],
         ]
         if disc_pct_val > 0:
-            accounting.append([f"Invoice Discount ({disc_pct_val:.0f}%):", f"–€{discount_amount:.2f}"])
+            accounting.append(
+                [f"Invoice Discount ({disc_pct_val:.0f}%):", f"–€{discount_amount:.2f}"]
+            )
         accounting += [
             ["Total (Incl. VAT):", f"€{float(final_total or gross_subtotal):.2f}"],
             ["Amount Paid:", f"€{float(paid_amount or 0):.2f}"],
@@ -2307,14 +2652,24 @@ class BillingInvoicingScreen(QWidget):
             elems.append(Spacer(1, 2 * mm))
         elif str(doc_type).upper() == "CHARITY":
             elems.append(
-                Paragraph("Charity / pro bono document. No payment due (clinic-sponsored).", styles["Normal"])
+                Paragraph(
+                    "Charity / pro bono document. No payment due (clinic-sponsored).",
+                    styles["Normal"],
+                )
             )
             elems.append(Spacer(1, 2 * mm))
 
         # Signatures
         sig = [["Doctor:", "Issued By:", "Received By:"], ["____", "____", "____"]]
         s_tbl = Table(sig, colWidths=[cw / 3] * 3)
-        s_tbl.setStyle(TableStyle([["FONTSIZE", (0, 0), (-1, -1), 7], ["BOTTOMPADDING", (0, 0), (2, 0), 4]]))
+        s_tbl.setStyle(
+            TableStyle(
+                [
+                    ["FONTSIZE", (0, 0), (-1, -1), 7],
+                    ["BOTTOMPADDING", (0, 0), (2, 0), 4],
+                ]
+            )
+        )
         elems.append(s_tbl)
 
         # Auto height
@@ -2363,7 +2718,9 @@ class BillingInvoicingScreen(QWidget):
             bottomMargin=15 * mm,
         )
         styles = getSampleStyleSheet()
-        h1 = ParagraphStyle("H1", parent=styles["Heading1"], fontSize=14, leading=16, spaceAfter=6)
+        h1 = ParagraphStyle(
+            "H1", parent=styles["Heading1"], fontSize=14, leading=16, spaceAfter=6
+        )
         small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9, leading=11)
 
         elems = []
@@ -2389,7 +2746,11 @@ class BillingInvoicingScreen(QWidget):
         elems += [header_tbl, Spacer(1, 6 * mm)]
 
         # Title & meta
-        title_map = {"INVOICE": "INVOICE", "ESTIMATE": "ESTIMATE", "CHARITY": "CHARITY / PRO BONO"}
+        title_map = {
+            "INVOICE": "INVOICE",
+            "ESTIMATE": "ESTIMATE",
+            "CHARITY": "CHARITY / PRO BONO",
+        }
         title = title_map.get(str(doc_type).upper(), "INVOICE")
         meta_tbl = Table(
             [
@@ -2402,11 +2763,27 @@ class BillingInvoicingScreen(QWidget):
             ],
             colWidths=[35 * mm, 134 * mm],
         )
-        meta_tbl.setStyle(TableStyle([["BOTTOMPADDING", (0, 0), (-1, -1), 3], ["FONTSIZE", (0, 1), (-1, -1), 10]]))
+        meta_tbl.setStyle(
+            TableStyle(
+                [
+                    ["BOTTOMPADDING", (0, 0), (-1, -1), 3],
+                    ["FONTSIZE", (0, 1), (-1, -1), 10],
+                ]
+            )
+        )
         elems += [meta_tbl, Spacer(1, 8 * mm)]
 
         # Items table
-        data = [["Description", "Qty", "Unit (net €)", "Discount (€)", "VAT (€)", "Line Total (€)"]]
+        data = [
+            [
+                "Description",
+                "Qty",
+                "Unit (net €)",
+                "Discount (€)",
+                "VAT (€)",
+                "Line Total (€)",
+            ]
+        ]
         for it in items:
             data.append(
                 [
@@ -2418,7 +2795,9 @@ class BillingInvoicingScreen(QWidget):
                     f"{float(it['total']):.2f}",
                 ]
             )
-        itbl = Table(data, colWidths=[90 * mm, 15 * mm, 22 * mm, 24 * mm, 20 * mm, 28 * mm])
+        itbl = Table(
+            data, colWidths=[90 * mm, 15 * mm, 22 * mm, 24 * mm, 20 * mm, 28 * mm]
+        )
         itbl.setStyle(
             TableStyle(
                 [
@@ -2470,7 +2849,9 @@ class BillingInvoicingScreen(QWidget):
             ["Gross Subtotal (Incl. VAT):", f"€{gross_subtotal:.2f}"],
         ]
         if disc_pct_val > 0:
-            accounting.append([f"Invoice Discount ({disc_pct_val:.0f}%):", f"-€{discount_amount:.2f}"])
+            accounting.append(
+                [f"Invoice Discount ({disc_pct_val:.0f}%):", f"-€{discount_amount:.2f}"]
+            )
         accounting += [
             ["Total (Incl. VAT):", f"€{float(final_total or gross_subtotal):.2f}"],
             ["Amount Paid:", f"€{float(paid_amount or 0):.2f}"],
@@ -2500,13 +2881,19 @@ class BillingInvoicingScreen(QWidget):
             ]
         elif str(doc_type).upper() == "CHARITY":
             elems += [
-                Paragraph("Charity / pro bono document. No payment due (clinic-sponsored).", small),
+                Paragraph(
+                    "Charity / pro bono document. No payment due (clinic-sponsored).",
+                    small,
+                ),
                 Spacer(1, 4 * mm),
             ]
 
         # Signatures
         sig_tbl = Table(
-            [["Doctor:", "Issued By:", "Received By:"], ["__________________", "__________________", "__________________"]],
+            [
+                ["Doctor:", "Issued By:", "Received By:"],
+                ["__________________", "__________________", "__________________"],
+            ],
             colWidths=[60 * mm, 60 * mm, 49 * mm],
         )
         sig_tbl.setStyle(TableStyle([["FONTSIZE", (0, 0), (-1, -1), 10]]))
@@ -2514,9 +2901,8 @@ class BillingInvoicingScreen(QWidget):
 
         doc.build(elems)
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+
     # Totals / status helpers / export / clear
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def calculate_final_amount(self):
         try:
             total = float(self.total_amount_input.text() or 0)
@@ -2586,7 +2972,9 @@ class BillingInvoicingScreen(QWidget):
             remaining_balance = 0.0
 
         payment_status = (
-            "Paid" if remaining_balance <= 0 else "Partially Paid" if remaining_balance < final_amount else "Unpaid"
+            "Paid"
+            if remaining_balance <= 0
+            else "Partially Paid" if remaining_balance < final_amount else "Unpaid"
         )
 
         cursor.execute(
@@ -2597,7 +2985,9 @@ class BillingInvoicingScreen(QWidget):
         conn.close()
 
     def export_to_csv(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save CSV", "invoices.csv", "CSV Files (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save CSV", "invoices.csv", "CSV Files (*.csv)"
+        )
         if not path:
             return
         rows = self.invoice_table.rowCount()
@@ -2608,13 +2998,22 @@ class BillingInvoicingScreen(QWidget):
         try:
             with open(path, "w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
-                headers = [self.invoice_table.horizontalHeaderItem(c).text() for c in range(cols)]
+                headers = [
+                    self.invoice_table.horizontalHeaderItem(c).text()
+                    for c in range(cols)
+                ]
                 w.writerow(headers)
                 for r in range(rows):
-                    w.writerow([self.invoice_table.item(r, c).text() for c in range(cols)])
-            QMessageBox.information(self, "Export Successful", f"Invoices exported to {path}.")
+                    w.writerow(
+                        [self.invoice_table.item(r, c).text() for c in range(cols)]
+                    )
+            QMessageBox.information(
+                self, "Export Successful", f"Invoices exported to {path}."
+            )
         except Exception as e:
-            QMessageBox.critical(self, "Export Failed", f"An error occurred while exporting: {e}")
+            QMessageBox.critical(
+                self, "Export Failed", f"An error occurred while exporting: {e}"
+            )
 
     def clear_invoice_form(self):
         self.appointment_id_input.clear()

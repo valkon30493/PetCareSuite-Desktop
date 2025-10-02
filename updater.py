@@ -11,7 +11,6 @@ from version import APP_VERSION, CHANNEL
 
 BASE_URL = "https://valkon30493.github.io/PetCareSuite-Desktop/updates"
 
-
 def _appcast_url():
     return f"{BASE_URL}/{CHANNEL}/appcast.json"
 

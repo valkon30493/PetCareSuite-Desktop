@@ -13,8 +13,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+
 from backup import resource_path
 from db import connect as _connect
+
 
 
 class LoginWindow(QMainWindow):

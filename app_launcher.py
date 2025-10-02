@@ -1,4 +1,5 @@
 # app_launcher.py
+
 import os
 import sys
 import traceback
@@ -14,6 +15,7 @@ from backup import (
 )
 from db import open_conn
 from logger import log_error
+
 from login_screen import LoginWindow
 from main_window import MainWindow
 from updater import check_for_update, start_update_flow
@@ -144,6 +146,7 @@ def launch_app():
     splash = QSplashScreen(QPixmap(splash_img))
     splash.show()
     app.processEvents()
+
 
     # 1) Ensure DB file exists
     ensure_seed_db()  # creates empty DB if missing (or copies a seed)

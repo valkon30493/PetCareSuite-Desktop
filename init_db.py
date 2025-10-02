@@ -42,7 +42,9 @@ def _migrate(conn):
         conn.execute("ALTER TABLE invoices ADD COLUMN owner_contact TEXT")
         conn.execute("ALTER TABLE invoices ADD COLUMN owner_email TEXT")
         _set_version(conn, 2)
+
     # --- END PATCH ---
+
 
     # example future migration:
     # if v < 2:

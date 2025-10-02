@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
+
     QApplication,
     QDialog,
     QDialogButtonBox,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+
 from appointment_scheduling import AppointmentSchedulingScreen
 from backup import DB_PATH, backup_now, resource_path
 from billing_invoicing import BillingInvoicingScreen
@@ -28,6 +30,7 @@ from reports_analytics import ReportsAnalyticsScreen
 from user_management import UserManagementScreen
 from user_password_dialog import ChangeMyPasswordDialog
 from version import APP_VERSION, CHANNEL
+
 
 # Optional modules with graceful fallbacks
 try:
@@ -70,6 +73,43 @@ except Exception as e:
     class ConsentFormsScreen(QLabel):
         def __init__(self):
             super().__init__("📠Consent Forms screen not available")
+
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About PetCareSuite Desktop")
+        self.setModal(True)
+
+        lay = QVBoxLayout(self)
+
+        # Logo
+        logo = QLabel()
+        pix = QPixmap(resource_path("assets/petcaresuite_icon_256.png"))
+        if not pix.isNull():
+            logo.setPixmap(pix.scaledToHeight(96, Qt.SmoothTransformation))
+            logo.setAlignment(Qt.AlignCenter)
+            lay.addWidget(logo)
+
+        # Text
+        info = QLabel(
+            "<b>PetCareSuite Desktop</b><br>"
+            "Version 1.0.0<br>"
+            "© Valkon Solutions<br><br>"
+            "Powered by Valkon Solutions"
+        )
+        info.setAlignment(Qt.AlignCenter)
+        lay.addWidget(info)
+
+        # Environment details (useful for support)
+        env = QLabel(f"<small>Database: {DB_PATH}</small>")
+        env.setAlignment(Qt.AlignCenter)
+        env.setStyleSheet("color:#6b7280;")
+        lay.addWidget(env)
+
+        # Close button
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(self.reject)
+        lay.addWidget(btns)
 
 
 class AboutDialog(QDialog):
@@ -426,3 +466,4 @@ class MainWindow(QMainWindow):
     def show_about_dialog(self):
         dlg = AboutDialog(self)
         dlg.exec()
+

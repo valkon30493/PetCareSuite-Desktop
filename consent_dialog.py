@@ -1,14 +1,16 @@
 import os
 import sqlite3
 from datetime import datetime, timedelta
+
+from PySide6.QtCore import QDate, QTime
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QDialog,
+                               QDialogButtonBox, QFileDialog, QFormLayout,
+                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPlainTextEdit, QPushButton, QSpinBox,
+                               QTimeEdit, QVBoxLayout)
+
 from db import connect as _connect
 
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPlainTextEdit,
-    QComboBox, QDateEdit, QTimeEdit, QSpinBox, QCheckBox, QPushButton,
-    QDialogButtonBox, QFileDialog, QLabel, QMessageBox
-)
-from PySide6.QtCore import QDate, QTime
 
 class ConsentDialog(QDialog):
     """

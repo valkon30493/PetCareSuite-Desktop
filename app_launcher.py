@@ -1,13 +1,22 @@
 # app_launcher.py
-import sys, os, traceback
+import os
+import sys
+import traceback
+
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
+
+from backup import (
+    DB_PATH,
+    STYLE_QSS,  # central paths
+    auto_daily_backup_if_needed,
+    ensure_seed_db,
+)
+from db import open_conn
+from logger import log_error
 from login_screen import LoginWindow
 from main_window import MainWindow
-from logger import log_error
 from updater import check_for_update, start_update_flow
-from backup import ensure_seed_db, auto_daily_backup_if_needed, DB_PATH, STYLE_QSS  # central paths
-from db import open_conn
 
 
 # ---------- resource helper (works in dev and frozen) ----------
@@ -22,17 +31,20 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
 
 
-
-
-
 def required_tables() -> list[str]:
     # core tables needed before UI touches DB
     return [
-        "roles", "users",
-        "patients", "appointments",
-        "invoices", "invoice_items", "payment_history",
-        "items", "stock_movements",
-        "reminders", "prescriptions"
+        "roles",
+        "users",
+        "patients",
+        "appointments",
+        "invoices",
+        "invoice_items",
+        "payment_history",
+        "items",
+        "stock_movements",
+        "reminders",
+        "prescriptions",
     ]
 
 
@@ -63,6 +75,7 @@ def ensure_core_schema() -> None:
         # 1) Preferred: run your initializer
         try:
             from init_db import main as init_db_main
+
             init_db_main()  # should use CREATE TABLE IF NOT EXISTS everywhere
         except Exception as e:
             log_error(f"init_db.main() failed: {e}")  # non-fatal for now
@@ -75,7 +88,8 @@ def ensure_core_schema() -> None:
     try:
         if "items" in need:
             with open_conn() as con:
-                con.execute("""
+                con.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS items (
                       item_id            INTEGER PRIMARY KEY AUTOINCREMENT,
                       name               TEXT    NOT NULL,
@@ -84,10 +98,12 @@ def ensure_core_schema() -> None:
                       unit_price         REAL    NOT NULL DEFAULT 0,
                       reorder_threshold  INTEGER NOT NULL DEFAULT 0
                     );
-                """)
+                """
+                )
         if "stock_movements" in need:
             with open_conn() as con:
-                con.execute("""
+                con.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS stock_movements (
                       movement_id  INTEGER PRIMARY KEY AUTOINCREMENT,
                       item_id      INTEGER NOT NULL,
@@ -96,7 +112,8 @@ def ensure_core_schema() -> None:
                       timestamp    TEXT    NOT NULL,
                       FOREIGN KEY (item_id) REFERENCES items(item_id)
                     );
-                """)
+                """
+                )
     except Exception as e:
         log_error(f"Emergency inventory bootstrap failed: {e}")
 
@@ -128,7 +145,6 @@ def launch_app():
     splash.show()
     app.processEvents()
 
-
     # 1) Ensure DB file exists
     ensure_seed_db()  # creates empty DB if missing (or copies a seed)
 
@@ -140,7 +156,10 @@ def launch_app():
 
     # 4) Styles –†prefer centralized STYLE_QSS; fallback to /style/style.qss
     applied_style = False
-    for candidate in (str(STYLE_QSS), resource_path(os.path.join("style", "style.qss"))):
+    for candidate in (
+        str(STYLE_QSS),
+        resource_path(os.path.join("style", "style.qss")),
+    ):
         try:
             with open(candidate, "r", encoding="utf-8") as f:
                 app.setStyleSheet(f.read())
@@ -161,7 +180,9 @@ def launch_app():
         if appcast:
             m = QMessageBox()
             m.setWindowTitle("Update available")
-            m.setText(f"PetWellnessApp {appcast['latest']} is available.\n\n{appcast.get('notes', '')}")
+            m.setText(
+                f"PetWellnessApp {appcast['latest']} is available.\n\n{appcast.get('notes', '')}"
+            )
             m.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             if m.exec() == QMessageBox.Yes:
                 start_update_flow(appcast)
@@ -190,7 +211,7 @@ def launch_app():
             login_window,
             "Startup Error",
             "An unexpected error occurred while launching the application.\n"
-            "Please check the logs or console for details."
+            "Please check the logs or console for details.",
         )
         sys.exit(1)
 

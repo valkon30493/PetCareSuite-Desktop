@@ -1,23 +1,30 @@
 # notifications.py
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
+import smtplib
 import sqlite3
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     print("python-dotenv not installed; skipping .env load")
 
 
-smtp_email = os.getenv('SMTP_EMAIL')
-smtp_password = os.getenv('SMTP_PASSWORD')
-smtp_server = os.getenv('SMTP_SERVER', 'smtp.office365.com')
-smtp_port = int(os.getenv('SMTP_PORT', 587))
+smtp_email = os.getenv("SMTP_EMAIL")
+smtp_password = os.getenv("SMTP_PASSWORD")
+smtp_server = os.getenv("SMTP_SERVER", "smtp.office365.com")
+smtp_port = int(os.getenv("SMTP_PORT", 587))
 
 # ðŸ‴ Global kill-switch (set ENABLE_EMAILS=0 in your .env to disable)
-ENABLE_EMAILS = str(os.getenv("ENABLE_EMAILS", "0")).strip().lower() in ("1", "true", "yes")
+ENABLE_EMAILS = str(os.getenv("ENABLE_EMAILS", "0")).strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 
 def send_email(to_email, subject, message):
     """Send an email notification using SMTP (Outlook)."""
@@ -43,4 +50,3 @@ def send_email(to_email, subject, message):
     except Exception as e:
         print(f"Failed to send email: {e}")
         return False
-

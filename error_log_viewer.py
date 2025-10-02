@@ -1,11 +1,22 @@
 # error_log_viewer.py
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton,
-    QDateEdit, QHeaderView, QHBoxLayout, QMessageBox, QFileDialog
-)
-from db import connect as _connect
-from PySide6.QtCore import QDate
 import csv
+
+from PySide6.QtCore import QDate
+from PySide6.QtWidgets import (
+    QDateEdit,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+)
+
 from backup import LOG_PATH
+from db import connect as _connect
 
 
 class ErrorLogViewer(QDialog):
@@ -39,8 +50,12 @@ class ErrorLogViewer(QDialog):
         # Error Log Table â€â€ 2 columns to match DB schema
         self.log_table = QTableWidget()
         self.log_table.setColumnCount(3)
-        self.log_table.setHorizontalHeaderLabels(["Timestamp", "Error Type", "Error Message"])
-        self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.log_table.setHorizontalHeaderLabels(
+            ["Timestamp", "Error Type", "Error Message"]
+        )
+        self.log_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
         layout.addWidget(self.log_table)
 
         # Export
@@ -58,18 +73,21 @@ class ErrorLogViewer(QDialog):
         self.log_table.setRowCount(0)
 
         start_date = self.start_date_filter.date().toString("yyyy-MM-dd")
-        end_date   = self.end_date_filter.date().toString("yyyy-MM-dd")
+        end_date = self.end_date_filter.date().toString("yyyy-MM-dd")
 
         try:
             conn = _connect()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT timestamp, error_type, error_message
                   FROM error_logs
                  WHERE DATE(timestamp) BETWEEN DATE(?) AND DATE(?)
                  ORDER BY timestamp DESC
-            """, (start_date, end_date))
+            """,
+                (start_date, end_date),
+            )
             logs = cursor.fetchall()
             conn.close()
 
@@ -84,30 +102,35 @@ class ErrorLogViewer(QDialog):
 
     def export_logs_to_csv(self):
         """Export logs to a CSV file (2 columns)."""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save Logs", "error_logs.csv", "CSV Files (*.csv)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Logs", "error_logs.csv", "CSV Files (*.csv)"
+        )
         if not file_path:
             return
 
         try:
             conn = _connect()
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT timestamp, error_type, error_message
                   FROM error_logs
                  ORDER BY timestamp DESC
-            """)
+            """
+            )
             logs = cursor.fetchall()
             conn.close()
 
-            with open(file_path, mode='w', newline='', encoding='utf-8') as f:
+            with open(file_path, mode="w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 w.writerow(["Timestamp", "Error Type", "Error Message"])
                 w.writerows(logs)
 
-            QMessageBox.information(self, "Export Successful", f"Logs saved to {file_path}")
+            QMessageBox.information(
+                self, "Export Successful", f"Logs saved to {file_path}"
+            )
 
         except Exception as e:
-            QMessageBox.critical(self, "Export Failed", f"An error occurred while exporting: {str(e)}")
-
-
-
+            QMessageBox.critical(
+                self, "Export Failed", f"An error occurred while exporting: {str(e)}"
+            )

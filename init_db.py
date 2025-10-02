@@ -1,26 +1,33 @@
 # init_db.py
 from hashlib import sha256
+
 from db import connect as _connect
+
 
 # --- migrations helpers (ADD THIS BLOCK) ---
 def _ensure_schema_version_table(conn):
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS schema_version (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             version INTEGER NOT NULL
         )
-    """)
+    """
+    )
     cur = conn.execute("SELECT version FROM schema_version WHERE id=1")
     if cur.fetchone() is None:
         conn.execute("INSERT INTO schema_version (id, version) VALUES (1, 1)")
+
 
 def _get_version(conn) -> int:
     cur = conn.execute("SELECT version FROM schema_version WHERE id=1")
     row = cur.fetchone()
     return int(row[0]) if row else 1
 
+
 def _set_version(conn, v: int):
     conn.execute("UPDATE schema_version SET version=? WHERE id=1", (v,))
+
 
 def _migrate(conn):
     _ensure_schema_version_table(conn)
@@ -35,7 +42,7 @@ def _migrate(conn):
         conn.execute("ALTER TABLE invoices ADD COLUMN owner_contact TEXT")
         conn.execute("ALTER TABLE invoices ADD COLUMN owner_email TEXT")
         _set_version(conn, 2)
-     # --- END PATCH ---
+    # --- END PATCH ---
 
     # example future migration:
     # if v < 2:
@@ -53,14 +60,17 @@ def main():
     # -----------------------------
     # Roles & Users
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS roles (
         role_id    INTEGER PRIMARY KEY,
         role_name  TEXT NOT NULL UNIQUE
     )
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS users (
         user_id   INTEGER PRIMARY KEY,
         username  TEXT NOT NULL UNIQUE,
@@ -68,12 +78,14 @@ def main():
         role_id   INTEGER,
         FOREIGN KEY (role_id) REFERENCES roles(role_id)
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Patients
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS patients (
         patient_id    INTEGER PRIMARY KEY AUTOINCREMENT,
         name          TEXT NOT NULL,
@@ -85,12 +97,14 @@ def main():
         owner_contact TEXT,
         owner_email   TEXT
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Appointments
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS appointments (
         appointment_id      INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id          INTEGER NOT NULL,
@@ -103,12 +117,14 @@ def main():
         duration_minutes    INTEGER NOT NULL DEFAULT 30,
         FOREIGN KEY (patient_id) REFERENCES patients(patient_id)
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Reminders
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS reminders (
         reminder_id     INTEGER PRIMARY KEY AUTOINCREMENT,
         appointment_id  INTEGER,
@@ -117,12 +133,14 @@ def main():
         reminder_reason TEXT,
         FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Invoices (supports INVOICE / ESTIMATE / CHARITY)
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS invoices (
         invoice_id         INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_date       TEXT NOT NULL,
@@ -156,24 +174,32 @@ def main():
         FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id),
         FOREIGN KEY (patient_id)    REFERENCES patients(patient_id)
     )
-    """)
+    """
+    )
 
     # One document per (appointment_id, invoice_type); allows all three per appointment
     # appointment_id can be NULL, so we make it a partial unique index.
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE UNIQUE INDEX IF NOT EXISTS ux_invoices_appt_type
         ON invoices(appointment_id, invoice_type)
         WHERE appointment_id IS NOT NULL
-    """)
+    """
+    )
 
     # Helpful filters
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(invoice_type)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(invoice_type)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at)"
+    )
 
     # -----------------------------
     # Payment History
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS payment_history (
         payment_id     INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_id     INTEGER NOT NULL,
@@ -183,12 +209,14 @@ def main():
         notes          TEXT,
         FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Invoice Items
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS invoice_items (
         item_id         INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_id      INTEGER,
@@ -206,12 +234,14 @@ def main():
 
         FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Inventory
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS items (
       item_id            INTEGER PRIMARY KEY AUTOINCREMENT,
       name               TEXT NOT NULL,
@@ -220,10 +250,12 @@ def main():
       unit_price         REAL NOT NULL DEFAULT 0,
       reorder_threshold  INTEGER NOT NULL DEFAULT 0
     )
-    """)
+    """
+    )
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_name ON items(name)")
 
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS stock_movements (
       movement_id INTEGER PRIMARY KEY AUTOINCREMENT,
       item_id     INTEGER NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,
@@ -231,12 +263,14 @@ def main():
       reason      TEXT,
       timestamp   TEXT NOT NULL
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Prescriptions
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS prescriptions (
       prescription_id INTEGER PRIMARY KEY AUTOINCREMENT,
       patient_id      INTEGER NOT NULL REFERENCES patients(patient_id),
@@ -248,9 +282,11 @@ def main():
       dispensed       INTEGER NOT NULL DEFAULT 0,
       date_dispensed  TEXT
     )
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS prescription_history (
         history_id       INTEGER PRIMARY KEY AUTOINCREMENT,
         prescription_id  INTEGER NOT NULL REFERENCES prescriptions(prescription_id) ON DELETE CASCADE,
@@ -259,12 +295,14 @@ def main():
         timestamp        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         changes_json     TEXT
     )
-    """)
+    """
+    )
 
     # -----------------------------
     # Consents (simple) + Templates/Forms
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS consents (
         consent_id   INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id   INTEGER NOT NULL REFERENCES patients(patient_id),
@@ -275,16 +313,20 @@ def main():
         valid_until  TEXT,
         file_path    TEXT
     )
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS consent_templates (
       template_id INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL UNIQUE,
       body_text   TEXT NOT NULL
     )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS consent_forms (
       consent_id      INTEGER PRIMARY KEY AUTOINCREMENT,
       patient_id      INTEGER NOT NULL REFERENCES patients(patient_id),
@@ -299,21 +341,29 @@ def main():
       created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (template_id) REFERENCES consent_templates(template_id)
     )
-    """)
+    """
+    )
 
     cursor.execute(
         "INSERT OR IGNORE INTO consent_templates (name, body_text) VALUES (?, ?)",
-        ("General Treatment Consent", "I, {owner_name}, consent to examination and treatment for {patient_name}...")
+        (
+            "General Treatment Consent",
+            "I, {owner_name}, consent to examination and treatment for {patient_name}...",
+        ),
     )
     cursor.execute(
         "INSERT OR IGNORE INTO consent_templates (name, body_text) VALUES (?, ?)",
-        ("Surgery Consent", "I, {owner_name}, authorize surgical procedure for {patient_name} on {date}...")
+        (
+            "Surgery Consent",
+            "I, {owner_name}, authorize surgical procedure for {patient_name} on {date}...",
+        ),
     )
 
     # -----------------------------
     # Visits
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS visits (
         visit_id            INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id          INTEGER NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
@@ -341,8 +391,10 @@ def main():
         notes               TEXT,
         created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS visit_attachments (
         attach_id   INTEGER PRIMARY KEY AUTOINCREMENT,
         visit_id    INTEGER NOT NULL REFERENCES visits(visit_id) ON DELETE CASCADE,
@@ -350,35 +402,42 @@ def main():
         note        TEXT,
         added_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE INDEX IF NOT EXISTS idx_visits_patient_date
     ON visits(patient_id, visit_date)
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
     CREATE INDEX IF NOT EXISTS idx_visits_appt
     ON visits(appointment_id)
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
     CREATE UNIQUE INDEX IF NOT EXISTS ux_visits_appt
     ON visits(appointment_id)
     WHERE appointment_id IS NOT NULL
-    """)
+    """
+    )
 
     # -----------------------------
     # Error Logs
     # -----------------------------
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS error_logs (
         log_id        INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         error_type    TEXT,
         error_message TEXT NOT NULL
     )
-    """)
-
-
+    """
+    )
 
     # Seed roles and a few users
     for role in ("Admin", "Veterinarian", "Receptionist"):
@@ -393,7 +452,7 @@ def main():
         role_id = row[0]
         cursor.execute(
             "INSERT OR IGNORE INTO users (username, password, role_id) VALUES (?, ?, ?)",
-            (username, hashed, role_id)
+            (username, hashed, role_id),
         )
 
     create_user("admin", "admin123", "Admin")
@@ -412,8 +471,6 @@ def main():
     except Exception:
         print("Database initialized successfully.")
 
+
 if __name__ == "__main__":
     main()
-
-
-

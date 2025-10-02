@@ -1,14 +1,20 @@
 # pip install packaging
-import json, sys, webbrowser
+import json
+import sys
+import webbrowser
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
-from urllib.error import URLError, HTTPError
+
 from packaging import version
+
 from version import APP_VERSION, CHANNEL
 
 BASE_URL = "https://valkon30493.github.io/PetCareSuite-Desktop/updates"
 
+
 def _appcast_url():
     return f"{BASE_URL}/{CHANNEL}/appcast.json"
+
 
 def check_for_update(timeout_seconds: int = 5):
     try:
@@ -21,10 +27,10 @@ def check_for_update(timeout_seconds: int = 5):
         return None
     return None
 
+
 def start_update_flow(appcast: dict):
     url = appcast.get("win_url") or appcast.get("mac_url") or appcast.get("url")
     if url:
         webbrowser.open(url)
         return True
     return False
-

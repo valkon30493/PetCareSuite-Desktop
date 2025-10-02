@@ -2,10 +2,24 @@
 
 import sqlite3
 from hashlib import sha256
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QPushButton, QLineEdit, QComboBox, QLabel, QMessageBox, QFormLayout, QInputDialog
+
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFormLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
+
 from db import connect as _connect
+
 
 class UserManagementScreen(QWidget):
     def __init__(self):
@@ -68,11 +82,13 @@ class UserManagementScreen(QWidget):
         self.user_table.setRowCount(0)
         conn = _connect()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT username, role_name
             FROM users
             JOIN roles ON users.role_id = roles.role_id
-        ''')
+        """
+        )
         users = cursor.fetchall()
         conn.close()
 
@@ -87,7 +103,9 @@ class UserManagementScreen(QWidget):
         role = self.role_dropdown.currentText()
 
         if not username or not password:
-            QMessageBox.warning(self, "Input Error", "Username and password are required.")
+            QMessageBox.warning(
+                self, "Input Error", "Username and password are required."
+            )
             return
 
         hashed = sha256(password.encode()).hexdigest()
@@ -106,10 +124,13 @@ class UserManagementScreen(QWidget):
         role_id = result[0]
 
         try:
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO users (username, password, role_id)
                 VALUES (?, ?, ?)
-            ''', (username, hashed, role_id))
+            """,
+                (username, hashed, role_id),
+            )
             conn.commit()
             QMessageBox.information(self, "Success", f"User '{username}' created.")
             self.load_users()
@@ -128,12 +149,17 @@ class UserManagementScreen(QWidget):
 
         username = self.user_table.item(row, 0).text()
         if username == "admin":
-            QMessageBox.warning(self, "Not Allowed", "You cannot delete the default admin.")
+            QMessageBox.warning(
+                self, "Not Allowed", "You cannot delete the default admin."
+            )
             return
 
-        confirm = QMessageBox.question(self, "Confirm Deletion",
-                                       f"Delete user '{username}'?",
-                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Delete user '{username}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if confirm != QMessageBox.StandardButton.Yes:
             return
 
@@ -149,7 +175,9 @@ class UserManagementScreen(QWidget):
     def change_password(self):
         row = self.user_table.currentRow()
         if row < 0:
-            QMessageBox.warning(self, "No Selection", "Select a user to change password.")
+            QMessageBox.warning(
+                self, "No Selection", "Select a user to change password."
+            )
             return
 
         username = self.user_table.item(row, 0).text()
@@ -157,9 +185,12 @@ class UserManagementScreen(QWidget):
             return
 
         # Ask for new password
-        new_pw, ok = QInputDialog.getText(self, "Change Password",
-                                          f"Enter new password for '{username}':",
-                                          QLineEdit.Password)
+        new_pw, ok = QInputDialog.getText(
+            self,
+            "Change Password",
+            f"Enter new password for '{username}':",
+            QLineEdit.Password,
+        )
         if not ok or not new_pw.strip():
             return
 
@@ -167,11 +198,10 @@ class UserManagementScreen(QWidget):
 
         conn = _connect()
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET password = ? WHERE username = ?", (hashed_pw, username))
+        cursor.execute(
+            "UPDATE users SET password = ? WHERE username = ?", (hashed_pw, username)
+        )
         conn.commit()
         conn.close()
 
         QMessageBox.information(self, "Success", f"Password for '{username}' updated.")
-
-
-

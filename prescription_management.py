@@ -1,21 +1,34 @@
 # prescription_management.py
 
 import sqlite3
-import inventory
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QTableWidget, QTableWidgetItem, QComboBox, QLineEdit,
-    QPlainTextEdit, QPushButton, QMessageBox
-)
-from db import connect as _connect
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-# â â  Ensure the dispensed columns exist â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+import inventory
+from db import connect as _connect
+
+
+# â â  Ensure the dispensed columns exist â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
 def _ensure_dispensed_columns():
     conn = _connect()
     cur = conn.cursor()
     try:
-        cur.execute("ALTER TABLE prescriptions ADD COLUMN dispensed INTEGER NOT NULL DEFAULT 0")
+        cur.execute(
+            "ALTER TABLE prescriptions ADD COLUMN dispensed INTEGER NOT NULL DEFAULT 0"
+        )
     except sqlite3.OperationalError:
         pass
     try:
@@ -25,13 +38,16 @@ def _ensure_dispensed_columns():
     conn.commit()
     conn.close()
 
+
 _ensure_dispensed_columns()
 
-# â â  CRUD API â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+
+# â â  CRUD API â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
 def get_all_prescriptions():
     conn = _connect()
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         SELECT 
           pr.prescription_id,
           p.name        AS patient_name,
@@ -43,34 +59,44 @@ def get_all_prescriptions():
         FROM prescriptions pr
         JOIN patients p ON pr.patient_id = p.patient_id
         ORDER BY pr.date_issued DESC
-    """)
+    """
+    )
     rows = cur.fetchall()
     conn.close()
     return rows
 
+
 def create_prescription(patient_id, medication, dosage, instructions):
     conn = _connect()
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO prescriptions
           (patient_id, medication, dosage, instructions, date_issued)
         VALUES (?, ?, ?, ?, datetime('now'))
-    """, (patient_id, medication, dosage, instructions))
+    """,
+        (patient_id, medication, dosage, instructions),
+    )
     conn.commit()
     conn.close()
+
 
 def update_prescription(prescription_id, **fields):
     cols, vals = zip(*fields.items())
     set_clause = ", ".join(f"{col}=?" for col in cols)
     conn = _connect()
     cur = conn.cursor()
-    cur.execute(f"""
+    cur.execute(
+        f"""
         UPDATE prescriptions
            SET {set_clause}
          WHERE prescription_id=?
-    """, (*vals, prescription_id))
+    """,
+        (*vals, prescription_id),
+    )
     conn.commit()
     conn.close()
+
 
 def delete_prescription(prescription_id):
     conn = _connect()
@@ -79,7 +105,8 @@ def delete_prescription(prescription_id):
     conn.commit()
     conn.close()
 
-# â â  GUI â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+
+# â â  GUI â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
 class PrescriptionManagementScreen(QWidget):
     def __init__(self):
         super().__init__()
@@ -88,40 +115,47 @@ class PrescriptionManagementScreen(QWidget):
 
         main = QVBoxLayout(self)
 
-        # â â  Table â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Table â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels([
-            "ID", "Patient", "Medication", "Dosage",
-            "Instructions", "Issued", "Dispensed?"
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Patient",
+                "Medication",
+                "Dosage",
+                "Instructions",
+                "Issued",
+                "Dispensed?",
+            ]
+        )
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.itemSelectionChanged.connect(self.on_select)
         main.addWidget(self.table)
 
-        # â â  Form â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Form â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         form = QFormLayout()
         self.patient_combo = QComboBox()
         self._load_patient_list()
-        self.med_input    = QLineEdit()
+        self.med_input = QLineEdit()
         self.dosage_input = QLineEdit()
-        self.instr_input  = QPlainTextEdit()
-        form.addRow("Patient:",      self.patient_combo)
-        form.addRow("Medication:",   self.med_input)
-        form.addRow("Dosage:",       self.dosage_input)
+        self.instr_input = QPlainTextEdit()
+        form.addRow("Patient:", self.patient_combo)
+        form.addRow("Medication:", self.med_input)
+        form.addRow("Dosage:", self.dosage_input)
         form.addRow("Instructions:", self.instr_input)
         main.addLayout(form)
 
-        # â â  Buttons â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Buttons â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         btns = QHBoxLayout()
-        self.new_btn      = QPushButton("New")
-        self.save_btn     = QPushButton("Save")
-        self.delete_btn   = QPushButton("Delete")
+        self.new_btn = QPushButton("New")
+        self.save_btn = QPushButton("Save")
+        self.delete_btn = QPushButton("Delete")
         self.dispense_btn = QPushButton("Dispense")
         for b in (self.new_btn, self.save_btn, self.delete_btn, self.dispense_btn):
             btns.addWidget(b)
         main.addLayout(btns)
 
-        # â â  Connect â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Connect â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         self.new_btn.clicked.connect(self.on_new)
         self.save_btn.clicked.connect(self.on_save)
         self.delete_btn.clicked.connect(self.on_delete)
@@ -163,11 +197,14 @@ class PrescriptionManagementScreen(QWidget):
         # Pull full record from DB
         conn = _connect()
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT patient_id, medication, dosage, instructions, dispensed
               FROM prescriptions
              WHERE prescription_id = ?
-        """, (pres_id,))
+        """,
+            (pres_id,),
+        )
         row = cur.fetchone()
         conn.close()
 
@@ -192,10 +229,10 @@ class PrescriptionManagementScreen(QWidget):
         self.dispense_btn.setEnabled(False)
 
     def on_save(self):
-        med    = self.med_input.text().strip()
+        med = self.med_input.text().strip()
         dosage = self.dosage_input.text().strip()
-        instr  = self.instr_input.toPlainText().strip()
-        pid    = self.patient_combo.currentData()
+        instr = self.instr_input.toPlainText().strip()
+        pid = self.patient_combo.currentData()
         if not med or not dosage:
             QMessageBox.warning(self, "Input Error", "Medication and dosage required.")
             return
@@ -203,8 +240,10 @@ class PrescriptionManagementScreen(QWidget):
         if self.selected_prescription_id:
             update_prescription(
                 self.selected_prescription_id,
-                patient_id=pid, medication=med,
-                dosage=dosage, instructions=instr
+                patient_id=pid,
+                medication=med,
+                dosage=dosage,
+                instructions=instr,
             )
         else:
             create_prescription(pid, med, dosage, instr)
@@ -214,7 +253,10 @@ class PrescriptionManagementScreen(QWidget):
     def on_delete(self):
         if not self.selected_prescription_id:
             return
-        if QMessageBox.question(self, "Confirm", "Delete this prescription?") != QMessageBox.Yes:
+        if (
+            QMessageBox.question(self, "Confirm", "Delete this prescription?")
+            != QMessageBox.Yes
+        ):
             return
         delete_prescription(self.selected_prescription_id)
         self.refresh()
@@ -228,7 +270,9 @@ class PrescriptionManagementScreen(QWidget):
         # 1) Get medication name
         conn = _connect()
         cur = conn.cursor()
-        cur.execute("SELECT medication FROM prescriptions WHERE prescription_id = ?", (pid,))
+        cur.execute(
+            "SELECT medication FROM prescriptions WHERE prescription_id = ?", (pid,)
+        )
         res = cur.fetchone()
         conn.close()
         if not res:
@@ -243,39 +287,37 @@ class PrescriptionManagementScreen(QWidget):
         row = cur.fetchone()
         conn.close()
         if not row:
-            QMessageBox.warning(self, "No SKU",
-                                f"No inventory item named {med_name}found.")
+            QMessageBox.warning(
+                self, "No SKU", f"No inventory item named {med_name}found."
+            )
             return
         item_id = row[0]
 
         # 3) Deduct stock
         try:
-            inventory.adjust_stock(
-                item_id, -1,
-                f"Dispensed Rx #{pid}"
-            )
+            inventory.adjust_stock(item_id, -1, f"Dispensed Rx #{pid}")
         except Exception as e:
-            QMessageBox.critical(self, "Error",
-                                 f"Could not adjust stock:\n{e}")
+            QMessageBox.critical(self, "Error", f"Could not adjust stock:\n{e}")
             return
 
         # 4) Mark dispensed
         conn = _connect()
-        cur  = conn.cursor()
-        cur.execute("""
+        cur = conn.cursor()
+        cur.execute(
+            """
             UPDATE prescriptions
                SET dispensed = 1,
                    date_dispensed = datetime('now')
              WHERE prescription_id = ?
-        """, (pid,))
+        """,
+            (pid,),
+        )
         conn.commit()
         conn.close()
 
-        QMessageBox.information(self, "Dispensed",
-                                f"1 × {med_name} removed from stock.")
+        QMessageBox.information(
+            self, "Dispensed", f"1 × {med_name} removed from stock."
+        )
         self.dispense_btn.setEnabled(False)
         # Refresh the little checkmark in the table:
         self.refresh()
-
-
-

@@ -1,15 +1,29 @@
 # inventory_management.py
 
-import sqlite3, csv
+import csv
+import sqlite3
 from datetime import datetime
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QTableWidget, QTableWidgetItem, QLineEdit, QPlainTextEdit,
-    QDoubleSpinBox, QSpinBox, QPushButton, QMessageBox,
-    QFileDialog, QInputDialog
-)
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 import inventory  # your existing inventory.py
+
 
 class InventoryManagementScreen(QWidget):
     def __init__(self):
@@ -19,22 +33,25 @@ class InventoryManagementScreen(QWidget):
 
         main = QVBoxLayout(self)
 
-        # â â  Table â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Table â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels([
-            "ID","Name","Description","Cost","Price","On-Hand","Reorder Lvl"
-        ])
+        self.table.setHorizontalHeaderLabels(
+            ["ID", "Name", "Description", "Cost", "Price", "On-Hand", "Reorder Lvl"]
+        )
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.itemSelectionChanged.connect(self.on_select)
         main.addWidget(self.table)
 
-        # â â  Form â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Form â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         form = QFormLayout()
-        self.name_in   = QLineEdit()
-        self.desc_in   = QPlainTextEdit()
-        self.cost_in   = QDoubleSpinBox(); self.cost_in.setMinimum(0)
-        self.price_in  = QDoubleSpinBox(); self.price_in.setMinimum(0)
-        self.thresh_in = QSpinBox(); self.thresh_in.setMinimum(0)
+        self.name_in = QLineEdit()
+        self.desc_in = QPlainTextEdit()
+        self.cost_in = QDoubleSpinBox()
+        self.cost_in.setMinimum(0)
+        self.price_in = QDoubleSpinBox()
+        self.price_in.setMinimum(0)
+        self.thresh_in = QSpinBox()
+        self.thresh_in.setMinimum(0)
         form.addRow("Name:", self.name_in)
         form.addRow("Description:", self.desc_in)
         form.addRow("Unit Cost:", self.cost_in)
@@ -42,18 +59,24 @@ class InventoryManagementScreen(QWidget):
         form.addRow("Reorder Threshold:", self.thresh_in)
         main.addLayout(form)
 
-        # â â  Buttons â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Buttons â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         btns = QHBoxLayout()
-        self.new_btn    = QPushButton("New")
-        self.save_btn   = QPushButton("Save")
+        self.new_btn = QPushButton("New")
+        self.save_btn = QPushButton("Save")
         self.delete_btn = QPushButton("Delete")
         self.adjust_btn = QPushButton("Adjust Stock")
         self.export_btn = QPushButton("Export Reorder Report")
-        for b in (self.new_btn, self.save_btn, self.delete_btn, self.adjust_btn, self.export_btn):
+        for b in (
+            self.new_btn,
+            self.save_btn,
+            self.delete_btn,
+            self.adjust_btn,
+            self.export_btn,
+        ):
             btns.addWidget(b)
         main.addLayout(btns)
 
-        # â â  Signals â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # â â  Signals â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â
         self.new_btn.clicked.connect(self.on_new)
         self.save_btn.clicked.connect(self.on_save)
         self.delete_btn.clicked.connect(self.on_delete)
@@ -96,13 +119,19 @@ class InventoryManagementScreen(QWidget):
             QMessageBox.warning(self, "Input Error", "Name is required.")
             return
         desc = self.desc_in.toPlainText()
-        cost, price, thr = self.cost_in.value(), self.price_in.value(), self.thresh_in.value()
+        cost, price, thr = (
+            self.cost_in.value(),
+            self.price_in.value(),
+            self.thresh_in.value(),
+        )
         if self.selected_item_id:
             inventory.update_item(
                 self.selected_item_id,
-                name=name, description=desc,
-                unit_cost=cost, unit_price=price,
-                reorder_threshold=thr
+                name=name,
+                description=desc,
+                unit_cost=cost,
+                unit_price=price,
+                reorder_threshold=thr,
             )
         else:
             inventory.create_item(name, desc, cost, price, thr)
@@ -113,7 +142,10 @@ class InventoryManagementScreen(QWidget):
     def on_delete(self):
         if not self.selected_item_id:
             return
-        if QMessageBox.question(self, "Confirm", "Delete this item?") != QMessageBox.Yes:
+        if (
+            QMessageBox.question(self, "Confirm", "Delete this item?")
+            != QMessageBox.Yes
+        ):
             return
         inventory.delete_item(self.selected_item_id)
         self.on_new()
@@ -135,13 +167,15 @@ class InventoryManagementScreen(QWidget):
         self.check_low_stock_and_alert()
 
     def on_export(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save CSV", "reorder_report.csv", "*.csv")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save CSV", "reorder_report.csv", "*.csv"
+        )
         if not path:
             return
         rows = inventory.items_below_reorder()
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["ID","Name","Desc","Cost","Price","Threshold","OnHand"])
+            w.writerow(["ID", "Name", "Desc", "Cost", "Price", "Threshold", "OnHand"])
             w.writerows(rows)
         QMessageBox.information(self, "Exported", f"Saved to {path}")
 
@@ -154,6 +188,6 @@ class InventoryManagementScreen(QWidget):
         QMessageBox.warning(
             self,
             "Low Stock Warning",
-            "<b>The following items are at or below reorder level:</b><br>" +
-            "<br>".join(lines)
+            "<b>The following items are at or below reorder level:</b><br>"
+            + "<br>".join(lines),
         )

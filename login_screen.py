@@ -1,12 +1,21 @@
 # login_screen.py
 from hashlib import sha256
-from PySide6.QtWidgets import (QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout,
-    QWidget, QMessageBox
-)
-from PySide6.QtGui import QPixmap
-from db import connect as _connect
+
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from backup import resource_path
+from db import connect as _connect
+
 
 class LoginWindow(QMainWindow):
     login_successful = Signal(str, str)  # username, role
@@ -52,12 +61,15 @@ class LoginWindow(QMainWindow):
 
         conn = _connect()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT users.user_id, roles.role_name
             FROM users
             JOIN roles ON users.role_id = roles.role_id
             WHERE users.username = ? AND users.password = ?
-        ''', (username, hashed_password))
+        """,
+            (username, hashed_password),
+        )
         user = cursor.fetchone()
         conn.close()
 
@@ -67,6 +79,3 @@ class LoginWindow(QMainWindow):
             self.close()
         else:
             QMessageBox.warning(self, "Login Failed", "Invalid username or password")
-
-
-

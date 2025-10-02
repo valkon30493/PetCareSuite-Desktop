@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QPushButton, QLabel,
     QLineEdit, QComboBox, QFormLayout, QHeaderView, QFileDialog,
     QMessageBox, QSpinBox, QDialog, QDoubleSpinBox, QDateTimeEdit, QDateEdit,
-    QSizePolicy, QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QComboBox, QLineEdit, QLabel
+    QSizePolicy
 )
 from PySide6.QtPrintSupport import QPrinterInfo
 
@@ -1351,13 +1351,13 @@ class BillingInvoicingScreen(QWidget):
             # fallback to owner if appt id invalid
             conn = _connect();
             cur = conn.cursor()
-            cur.execute("SELECT owner_name FROM invoices WHERE invoice_id=?", (self.selected_invoice_id,))
+            cur.execute("SELECT owner_name, owner_contact, owner_email FROM invoices WHERE invoice_id=?", (self.selected_invoice_id,))
             r2 = cur.fetchone()
             conn.close()
-            self.patient_name_label.setText((r2 and r2[0]) or "")
             self.date_label.clear()
             self.add_item_button.setEnabled(True)
-            self._set_owner_snapshot((r2 and r2[1]) or "", (r2 and r2[2]) or "", show=True)
+            name, contact, email = (r2 or ("", "", ""))
+            self._set_owner_snapshot(name or "", f"{contact or ''}", f"{email or ''}", show=True)
 
     # Create docs
     def create_invoice(self):

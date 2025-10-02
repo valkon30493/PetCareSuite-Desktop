@@ -1,5 +1,3 @@
-import sys
-import traceback
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
@@ -19,6 +17,8 @@ from user_password_dialog import ChangeMyPasswordDialog
 from reports import ZReportWidget
 from reports_analytics import ReportsAnalyticsScreen
 from backup import backup_now, resource_path, DB_PATH
+from version import APP_VERSION, CHANNEL
+
 
 
 # Optional modules with graceful fallbacks
@@ -74,11 +74,11 @@ class AboutDialog(QDialog):
 
         # Text
         info = QLabel(
-            "<b>PetCareSuite Desktop</b><br>"
-            "Version 1.0.0<br>"
-            "© Valkon Solutions<br><br>"
-            "Powered by Valkon Solutions"
+            f"<b>PetCareSuite Desktop</b><br>"
+            f"Version {APP_VERSION} ({CHANNEL})<br>"
+            "© Valkon Solutions"
         )
+
         info.setAlignment(Qt.AlignCenter)
         lay.addWidget(info)
 

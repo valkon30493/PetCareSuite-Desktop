@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QPushButton, QLabel,
     QLineEdit, QComboBox, QFormLayout, QHeaderView, QFileDialog,
     QMessageBox, QSpinBox, QDialog, QDoubleSpinBox, QDateTimeEdit, QDateEdit,
-    QSizePolicy,
+    QSizePolicy, QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QComboBox, QLineEdit, QLabel
 )
 from PySide6.QtPrintSupport import QPrinterInfo
 
@@ -33,9 +33,7 @@ from logger import log_error
 from backup import LOGO_PNG
 from backup import DB_PATH
 
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
 # Small helpers / styling
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
 BTN_STYLE = """
 QPushButton {
   font-size: 14px;
@@ -97,9 +95,7 @@ def _find_logo_path():
     return None
 
 
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
 # Dialogs
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
 class PaymentHistoryDialog(QDialog):
     def __init__(self, invoice_id, parent=None):
         super().__init__(parent)
@@ -232,20 +228,21 @@ class AddPaymentDialog(QDialog):
 
 
 class AppointmentPickerDialog(QDialog):
-    """Pick an appointment by Pet name and date range to fill Appointment ID."""
+    """Pick an appointment by Owner name and date range to fill Appointment ID."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Find Appointment")
+        self.setWindowTitle("Find Appointment (by Owner)")
         self.selected_id = None
 
         root = QVBoxLayout(self)
 
         form = QHBoxLayout()
-        self.pet_search = QLineEdit()
-        self.pet_search.setPlaceholderText("Pet name contains…")
-        form.addWidget(QLabel("Pet:"))
-        form.addWidget(self.pet_search)
+        # RENAMED: owner_search (was pet_search)
+        self.owner_search = QLineEdit()
+        self.owner_search.setPlaceholderText("Owner name contains…")
+        form.addWidget(QLabel("Owner:"))
+        form.addWidget(self.owner_search)
 
         self.start_date = QDateEdit(QDate.currentDate().addMonths(-3))
         self.start_date.setCalendarPopup(True)
@@ -267,6 +264,7 @@ class AppointmentPickerDialog(QDialog):
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
+        # Columns unchanged: ID | Date/Time | Pet | Owner
         self.table.setHorizontalHeaderLabels(["Appointment\nID", "Date/\nTime", "Pet", "Owner"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
@@ -287,21 +285,22 @@ class AppointmentPickerDialog(QDialog):
         root.addLayout(btns)
 
     def _do_search(self):
-        pet_like = f"%{(self.pet_search.text() or '').strip()}%"
+        owner_like = f"%{(self.owner_search.text() or '').strip()}%"
         s = self.start_date.date().toString("yyyy-MM-dd")
         e = self.end_date.date().toString("yyyy-MM-dd")
         conn = _connect()
         cur = conn.cursor()
+        # CHANGED: search by OWNER ONLY
         cur.execute(
             """
-            SELECT a.appointment_id, a.date_time, p.name, p.owner_name
+            SELECT a.appointment_id, a.date_time, p.name AS pet_name, p.owner_name
               FROM appointments a
               JOIN patients p ON a.patient_id = p.patient_id
-             WHERE p.name LIKE ?
+             WHERE p.owner_name LIKE ?
                AND date(a.date_time) BETWEEN date(?) AND date(?)
              ORDER BY a.date_time DESC
             """,
-            (pet_like, s, e),
+            (owner_like, s, e),
         )
         rows = cur.fetchall()
         conn.close()
@@ -322,6 +321,7 @@ class AppointmentPickerDialog(QDialog):
 
     def get_selected_id(self):
         return self.selected_id
+
 
 
 class ItemizedBillingDialog(QDialog):
@@ -557,10 +557,61 @@ class InvoiceReminderDialog(QDialog):
             self.reason_input.text().strip(),
         )
 
+# --- OwnerPicker dialog (new) ---
+class OwnerPicker(QDialog):
+    """Pick an owner for walk‑in sales; optional free‑text contact/email.
+    Pulls unique owners from `patients` table to reduce typos.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Owner")
+        lay = QVBoxLayout(self)
+        form = QFormLayout()
 
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+        # Distinct owners from patients
+        self.owner_combo = QComboBox()
+        self.owner_combo.setEditable(True)  # allow typing new names too
+        owners = self._load_owners()
+        self.owner_combo.addItems(owners)
+        form.addRow("Owner:", self.owner_combo)
+
+        self.contact_in = QLineEdit()
+        form.addRow("Owner Contact:", self.contact_in)
+
+        self.email_in = QLineEdit()
+        form.addRow("Owner Email:", self.email_in)
+
+        lay.addLayout(form)
+
+        buttons = QHBoxLayout()
+        ok = QPushButton("Continue"); ok.clicked.connect(self.accept)
+        cancel = QPushButton("Cancel"); cancel.clicked.connect(self.reject)
+        buttons.addWidget(ok); buttons.addWidget(cancel)
+        lay.addLayout(buttons)
+
+    def _load_owners(self) -> list[str]:
+        try:
+            conn = _connect(); cur = conn.cursor()
+            cur.execute("""
+                SELECT DISTINCT owner_name
+                  FROM patients
+                 WHERE owner_name IS NOT NULL AND TRIM(owner_name) <> ''
+                 ORDER BY owner_name
+            """)
+            rows = [r[0] for r in cur.fetchall()]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    def get_values(self):
+        return (
+            self.owner_combo.currentText().strip(),
+            self.contact_in.text().strip(),
+            self.email_in.text().strip(),
+        )
+
 # Main Screen
-# â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
 class BillingInvoicingScreen(QWidget):
     invoiceSelected = Signal(int)  # emits invoice_id
 
@@ -576,7 +627,8 @@ class BillingInvoicingScreen(QWidget):
         left = QVBoxLayout()
         filters = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by Patient or Appt ID…")
+        # CHANGED: mention Owner in placeholder
+        self.search_input.setPlaceholderText("Search by Patient/Owner or Appt ID…")
         self.search_input.textChanged.connect(self.apply_filters)
         filters.addWidget(self.search_input)
 
@@ -603,11 +655,12 @@ class BillingInvoicingScreen(QWidget):
 
         self.invoice_table = QTableWidget()
         self.invoice_table.setColumnCount(9)
+        # CHANGED: column 3 name reflects patient OR owner
         self.invoice_table.setHorizontalHeaderLabels(
             [
                 "Invoice\nID",
                 "Appointment\nID",
-                "Patient\nName",
+                "Patient/Owner\nName",
                 "Total\nAmount",
                 "Final\nAmount",
                 "Payment\nStatus",
@@ -686,7 +739,7 @@ class BillingInvoicingScreen(QWidget):
 
         bottom.addWidget(QLabel("Appointment ID:"), 0, 0)
         self.appointment_id_input = QLineEdit()
-        self.appointment_id_input.setPlaceholderText("Enter Appointment ID or use Find…")
+        self.appointment_id_input.setPlaceholderText("Enter Appointment ID or use Find… (optional)")
         self.appointment_id_input.textChanged.connect(self.fetch_patient_details)
         bottom.addWidget(self.appointment_id_input, 0, 1)
 
@@ -695,11 +748,19 @@ class BillingInvoicingScreen(QWidget):
         self.find_appt_btn.clicked.connect(self._find_appointment)
         bottom.addWidget(self.find_appt_btn, 0, 2)
 
-        bottom.addWidget(QLabel("Patient Name:"), 1, 0)
+        bottom.addWidget(QLabel("Patient/Owner:"), 1, 0)
         self.patient_name_label = QLineEdit()
         self.patient_name_label.setReadOnly(True)
         self.patient_name_label.setStyleSheet(ro)
         bottom.addWidget(self.patient_name_label, 1, 1, 1, 2)
+
+        # NEW: Owner snapshot (visible only for walk-ins)
+        self.owner_snapshot_lbl = QLabel("Owner contact/email:")
+        self.owner_snapshot = QLineEdit()
+        self.owner_snapshot.setReadOnly(True)
+        self.owner_snapshot.setStyleSheet(ro)
+        bottom.addWidget(self.owner_snapshot_lbl, 2, 0)
+        bottom.addWidget(self.owner_snapshot, 2, 1, 1, 2)
 
         bottom.addWidget(QLabel("Appointment Date:"), 2, 0)
         self.date_label = QLineEdit()
@@ -746,6 +807,9 @@ class BillingInvoicingScreen(QWidget):
 
         center.addLayout(bottom)
 
+        # Owner information hidden until we detect a walk-in
+        self._set_owner_snapshot(None, None, show=False)
+
         center_widget.setMaximumWidth(700)
 
         # RIGHT: vertical buttons column
@@ -759,9 +823,14 @@ class BillingInvoicingScreen(QWidget):
             b.setMinimumWidth(180)
             buttons_col.addWidget(b)
 
-        self.new_invoice_btn = QPushButton("New Invoice")
+        self.new_invoice_btn = QPushButton("New Invoice (from Appt)")
         _stack(self.new_invoice_btn)
         self.new_invoice_btn.clicked.connect(self.create_invoice)
+
+        # NEW: walk-in invoice
+        self.walkin_invoice_btn = QPushButton("New Walk-in Invoice")
+        _stack(self.walkin_invoice_btn)
+        self.walkin_invoice_btn.clicked.connect(self.create_walkin_invoice)
 
         self.create_estimate_btn = QPushButton("Create Estimate")
         _stack(self.create_estimate_btn)
@@ -819,9 +888,7 @@ class BillingInvoicingScreen(QWidget):
 
         self.load_invoices()
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Router helpers
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def open_billing_for_appointment(self, appointment_id: int):
         try:
             inv_id = self._get_or_create_draft_invoice(appointment_id)
@@ -875,6 +942,61 @@ class BillingInvoicingScreen(QWidget):
         conn.close()
         return inv_id
 
+    # NEW: walk-in invoice creation
+    def _create_walkin_invoice(self, owner_name: str, owner_contact: str, owner_email: str) -> int:
+        conn = _connect(); cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO invoices (
+                invoice_date, appointment_id, patient_id,
+                invoice_type, total_amount, tax, discount, final_amount,
+                payment_status, payment_method, created_at, remaining_balance,
+                payable, revenue_eligible, inventory_deducted,
+                owner_name, owner_contact, owner_email
+            )
+            VALUES (DATE('now'), NULL, NULL,
+                    'INVOICE', 0, 0, 0, 0,
+                    'Unpaid', NULL, CURRENT_TIMESTAMP, 0,
+                    1, 1, 0,
+                    ?, ?, ?)
+            """,
+            (owner_name or None, owner_contact or None, owner_email or None),
+        )
+        inv_id = cur.lastrowid
+        conn.commit(); conn.close()
+        return inv_id
+
+    def create_walkin_invoice(self):
+        dlg = OwnerPicker(self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        owner_name, owner_contact, owner_email = dlg.get_values()
+        if not owner_name:
+            QMessageBox.warning(self, "Missing Owner", "Please enter/select an owner name.")
+            return
+        try:
+            inv_id = self._create_walkin_invoice(owner_name, owner_contact, owner_email)
+            self._opened_from_appointments = False
+            self.new_invoice_btn.setEnabled(True)
+            self.load_invoice_by_id(inv_id)
+            self.add_item_button.setEnabled(True)
+            self._set_owner_snapshot(owner_contact, owner_email, show=True)
+            QMessageBox.information(self, "Invoice Created", "Draft walk-in invoice created. Add items and Save.")
+        except Exception as e:
+            log_error(f"create_walkin_invoice failed: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to create walk-in invoice: {e}")
+
+    def _set_owner_snapshot(self, contact: str | None, email: str | None, show: bool):
+        txt_parts = []
+        if contact:
+            txt_parts.append(contact)
+        if email:
+            txt_parts.append(email)
+        self.owner_snapshot.setText(" • ".join(txt_parts))
+        self.owner_snapshot.setVisible(show)
+        self.owner_snapshot_lbl.setVisible(show)
+
+
     def _set_doc_mode(self, doc_row: dict):
         doc_type = (doc_row or {}).get("invoice_type", "INVOICE")
         payable = int((doc_row or {}).get("payable", 1) or 0)
@@ -893,24 +1015,25 @@ class BillingInvoicingScreen(QWidget):
         self.payment_method_dropdown.setEnabled(is_invoice)
 
         self.convert_btn.setEnabled(is_est and self.selected_invoice_id is not None)
+        # allow items regardless of appointment (for walk-ins)
         self.add_item_button.setEnabled(True)
         self.edit_item_button.setEnabled(self.item_table.currentRow() >= 0)
         self.delete_item_button.setEnabled(self.item_table.currentRow() >= 0)
 
         self.save_btn.setText("Save Invoice" if is_invoice else ("Save Estimate" if is_est else "Save Charity"))
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Loading & filtering
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def load_invoices(self):
         try:
             conn = _connect()
             cur = conn.cursor()
+            # CHANGED: LEFT JOIN appointments to include NULL appointment_id
+            #          Patient/Owner fallback via COALESCE
             cur.execute(
                 """
                 SELECT i.invoice_id,
                        i.appointment_id,
-                       (SELECT name FROM patients WHERE patient_id = a.patient_id) AS patient_name,
+                       COALESCE((SELECT name FROM patients WHERE patient_id = a.patient_id), i.owner_name) AS patient_or_owner,
                        i.total_amount,
                        i.final_amount,
                        i.payment_status,
@@ -918,9 +1041,10 @@ class BillingInvoicingScreen(QWidget):
                        (i.final_amount - COALESCE((SELECT SUM(amount_paid)
                              FROM payment_history
                             WHERE invoice_id = i.invoice_id), 0)) AS remaining,
+                       i.owner_contact,
                        i.created_at
                   FROM invoices i
-                  JOIN appointments a ON i.appointment_id = a.appointment_id
+                  LEFT JOIN appointments a ON i.appointment_id = a.appointment_id
                  ORDER BY i.invoice_id DESC
                 """
             )
@@ -946,12 +1070,13 @@ class BillingInvoicingScreen(QWidget):
             (
                 invoice_id,
                 appt_id,
-                patient_name,
+                patient_or_owner,
                 total_amt,
                 final_amt,
                 status,
                 method,
                 remaining,
+                owner_contact,
                 created_at,
             ) = row
 
@@ -961,7 +1086,7 @@ class BillingInvoicingScreen(QWidget):
                     continue
 
             if search:
-                if (search not in str(appt_id).lower()) and (search not in (patient_name or "").lower()):
+                if (search not in str(appt_id).lower()) and (search not in (patient_or_owner or "").lower()) and (search not in (str(owner_contact) or "").lower()):
                     continue
 
             if status_filter == "Open" and str(status) == "Paid":
@@ -1020,7 +1145,8 @@ class BillingInvoicingScreen(QWidget):
         cur.execute(
             """
             SELECT appointment_id, total_amount, tax, discount, final_amount, remaining_balance,
-                   payment_status, payment_method, invoice_type, payable, inventory_deducted
+                   payment_status, payment_method, invoice_type, payable, inventory_deducted,
+                   owner_name, owner_contact, owner_email
               FROM invoices
              WHERE invoice_id = ?
             """,
@@ -1045,9 +1171,16 @@ class BillingInvoicingScreen(QWidget):
             invoice_type,
             payable,
             inventory_deducted,
+            owner_name,
+            owner_contact,
+            owner_email,
         ) = row
 
         self.appointment_id_input.setText(str(appt_id or ""))
+        # show owner/patient in label (fetch_patient_details will refine if appt exists)
+        self.patient_name_label.setText(owner_name or "")
+        # Show snapshot only when there is NO appointment
+        self._set_owner_snapshot(owner_contact, owner_email, show=(not appt_id))
         self.total_amount_input.setText(f"{float(total_amt or 0):.2f}")
         self.discount_input.setValue(int(disc_pct or 0))
         self.final_amount_label.setText(f"{float(final_amt or 0):.2f}")
@@ -1084,9 +1217,7 @@ class BillingInvoicingScreen(QWidget):
         except Exception:
             pass
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Item grid
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def _on_item_selection(self):
         has = self.item_table.currentRow() >= 0
         self.edit_item_button.setEnabled(has)
@@ -1171,9 +1302,7 @@ class BillingInvoicingScreen(QWidget):
         conn.close()
         self.load_invoice_items()
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Patient / appointment
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def _find_appointment(self):
         dlg = AppointmentPickerDialog(self)
         if dlg.exec() == QDialog.Accepted:
@@ -1184,9 +1313,20 @@ class BillingInvoicingScreen(QWidget):
     def fetch_patient_details(self):
         appt = self.appointment_id_input.text().strip()
         if not appt:
-            self.patient_name_label.clear()
+            # Walk-in: load owner snapshot from invoice
+            conn = _connect();
+            cur = conn.cursor()
+            cur.execute("SELECT owner_name, owner_contact, owner_email FROM invoices WHERE invoice_id=?",
+                        (self.selected_invoice_id,))
+            row = cur.fetchone()
+            conn.close()
+            owner_name = (row and row[0]) or ""
+            owner_contact = (row and row[1]) or ""
+            owner_email = (row and row[2]) or ""
+            self.patient_name_label.setText(owner_name)
             self.date_label.clear()
-            self.add_item_button.setEnabled(False)
+            self.add_item_button.setEnabled(True)
+            self._set_owner_snapshot(owner_contact, owner_email, show=True)
             return
 
         conn = _connect()
@@ -1206,21 +1346,29 @@ class BillingInvoicingScreen(QWidget):
             self.patient_name_label.setText(row[0] or "")
             self.date_label.setText(row[1] or "")
             self.add_item_button.setEnabled(True)
+            self._set_owner_snapshot(None, None, show=False)
         else:
-            self.patient_name_label.clear()
+            # fallback to owner if appt id invalid
+            conn = _connect();
+            cur = conn.cursor()
+            cur.execute("SELECT owner_name FROM invoices WHERE invoice_id=?", (self.selected_invoice_id,))
+            r2 = cur.fetchone()
+            conn.close()
+            self.patient_name_label.setText((r2 and r2[0]) or "")
             self.date_label.clear()
-            self.add_item_button.setEnabled(False)
+            self.add_item_button.setEnabled(True)
+            self._set_owner_snapshot((r2 and r2[1]) or "", (r2 and r2[2]) or "", show=True)
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Create docs
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def create_invoice(self):
+        # unchanged: appointment-driven invoice flow
         appt = self.appointment_id_input.text().strip()
         if not appt:
             self._find_appointment()
             appt = self.appointment_id_input.text().strip()
             if not appt:
-                QMessageBox.information(self, "No Appointment", "Please select an appointment to create an invoice.")
+                QMessageBox.information(self, "No Appointment",
+                                        "Please select an appointment to create an invoice.")
                 return
         try:
             conn = _connect()
@@ -1283,7 +1431,8 @@ class BillingInvoicingScreen(QWidget):
                 self._find_appointment()
                 appt = self.appointment_id_input.text().strip()
                 if not appt:
-                    QMessageBox.information(self, "No Appointment", "Please select an appointment to create an estimate.")
+                    QMessageBox.information(self, "No Appointment",
+                                            "Please select an appointment to create an estimate.")
                     return
 
             conn = _connect()
@@ -1331,7 +1480,8 @@ class BillingInvoicingScreen(QWidget):
                 self._find_appointment()
                 appt = self.appointment_id_input.text().strip()
                 if not appt:
-                    QMessageBox.information(self, "No Appointment", "Please select an appointment to create a charity doc.")
+                    QMessageBox.information(self, "No Appointment",
+                                            "Please select an appointment to create a charity doc.")
                     return
 
             conn = _connect()
@@ -1374,18 +1524,16 @@ class BillingInvoicingScreen(QWidget):
             log_error(f"Error in create_charity: {e}")
             QMessageBox.critical(self, "Error", f"Failed to create charity document: {e}")
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+
     # Save / inventory deduction
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def edit_invoice(self):
         if not self.selected_invoice_id:
             QMessageBox.warning(self, "No Document", "Please select a document to save.")
             return
 
-        appt = self.appointment_id_input.text().strip()
-        if not appt:
-            QMessageBox.warning(self, "Input Error", "Appointment ID is required.")
-            return
+        # CHANGED: appointment is optional
+        appt_txt = self.appointment_id_input.text().strip()
+        appointment_id = int(appt_txt) if appt_txt.isdigit() else None
 
         conn = None
         try:
@@ -1407,6 +1555,7 @@ class BillingInvoicingScreen(QWidget):
                 return
             doc_type, payable_flag, already_deducted = row[0], int(row[1] or 0), int(row[2] or 0)
 
+            # CHANGED: update with nullable appointment_id
             cur.execute(
                 """
                 UPDATE invoices
@@ -1420,7 +1569,7 @@ class BillingInvoicingScreen(QWidget):
                  WHERE invoice_id = ?
                 """,
                 (
-                    appt,
+                    appointment_id,
                     total_amount,
                     disc,
                     final_amount,
@@ -1430,6 +1579,7 @@ class BillingInvoicingScreen(QWidget):
                 ),
             )
 
+            # items rewrite (unchanged)
             cur.execute("DELETE FROM invoice_items WHERE invoice_id = ?", (self.selected_invoice_id,))
             for r in range(self.item_table.rowCount()):
                 desc = self.item_table.item(r, 0).text().strip()
@@ -1468,6 +1618,7 @@ class BillingInvoicingScreen(QWidget):
                     ),
                 )
 
+            # inventory (unchanged)
             if str(doc_type).upper() in ("INVOICE", "CHARITY") and already_deducted == 0:
                 reason_prefix = f"Dispensed via {str(doc_type).title()} #{self.selected_invoice_id}"
                 for r in range(self.item_table.rowCount()):
@@ -1480,7 +1631,7 @@ class BillingInvoicingScreen(QWidget):
                     if not rec:
                         continue
                     item_id = rec[0]
-                    reason = f"{reason_prefix} â€â€ {qty}×{desc}"
+                    reason = f"{reason_prefix} — {qty}×{desc}"
                     cur.execute(
                         "SELECT COUNT(*) FROM stock_movements WHERE item_id=? AND reason=?",
                         (item_id, reason),
@@ -1604,7 +1755,7 @@ class BillingInvoicingScreen(QWidget):
                         continue
                     item_id = rec[0]
 
-                    reason = f"{reason_prefix} â€â€ {q}×{str(desc).strip()}"
+                    reason = f"{reason_prefix} - {q}×{str(desc).strip()}"
                     cur.execute(
                         "SELECT COUNT(*) FROM stock_movements WHERE item_id=? AND reason=?",
                         (item_id, reason),
@@ -1639,9 +1790,7 @@ class BillingInvoicingScreen(QWidget):
         self.load_invoices()
         self.load_selected_invoice()
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Payments & reminders
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def view_payment_history(self):
         if not self.selected_invoice_id:
             QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice to view payment history.")
@@ -1733,7 +1882,11 @@ class BillingInvoicingScreen(QWidget):
         if not self.selected_invoice_id:
             QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice first.")
             return
-        appt_id = int(self.appointment_id_input.text() or 0)
+        appt_txt = self.appointment_id_input.text().strip()
+        if not appt_txt.isdigit():
+            QMessageBox.information(self, "No Appointment", "Reminders require an appointment.")
+            return
+        appt_id = int(appt_txt)
         dlg = InvoiceReminderDialog(self.selected_invoice_id, self)
         if dlg.exec() != QDialog.Accepted:
             return
@@ -1753,9 +1906,7 @@ class BillingInvoicingScreen(QWidget):
             self, "Reminder Scheduled", f"Payment reminder set for {rem_time}.\nReason: {reason}"
         )
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     # Delete
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
     def delete_invoice(self):
         if not self.selected_invoice_id:
             QMessageBox.warning(self, "No Invoice Selected", "Please select an invoice to delete.")
@@ -1777,30 +1928,47 @@ class BillingInvoicingScreen(QWidget):
         self.clear_inputs()
         self.clear_invoice_form()
 
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
-    # Printing / PDFs (logos + Excel-like audit block)
-    # â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â â 
+    # Printing / PDFs
     def _collect_invoice_print_payload(self):
         """
         Returns a dict with all data needed for PDF building/printing.
-        Also includes a VAT breakdown and books-ready totals.
+        Falls back to owner snapshot if there's no appointment/patient.
         """
         inv_id = self.selected_invoice_id
 
-        # Owner & pet (derive via current appointment field)
-        conn = _connect()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT p.owner_name, p.owner_contact, p.name
-              FROM appointments a
-              JOIN patients   p ON a.patient_id = p.patient_id
-             WHERE a.appointment_id = ?
-            """,
-            (int(self.appointment_id_input.text() or 0),),
-        )
-        owner_name, owner_contact, pet_name = cur.fetchone() or ("", "", "")
-        conn.close()
+        # Owner & pet
+        appt_id = int(self.appointment_id_input.text() or 0) if (
+                self.appointment_id_input.text() or "").isdigit() else None
+        owner_name = "";
+        owner_contact = "";
+        pet_name = ""
+        if appt_id:
+            conn = _connect();
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT p.owner_name, p.owner_contact, p.name
+                  FROM appointments a
+                  JOIN patients   p ON a.patient_id = p.patient_id
+                 WHERE a.appointment_id = ?
+                """,
+                (appt_id,),
+            )
+            owner_name, owner_contact, pet_name = cur.fetchone() or ("", "", "")
+            conn.close()
+        else:
+            # walk-in: pull snapshot from invoices
+            conn = _connect();
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT owner_name, owner_contact FROM invoices WHERE invoice_id=?",
+                (inv_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            owner_name = (row and row[0]) or ""
+            owner_contact = (row and row[1]) or ""
+            pet_name = ""
 
         # Items (incl VAT per line)
         conn = _connect()
@@ -1871,7 +2039,6 @@ class BillingInvoicingScreen(QWidget):
 
         subtotal = sum(float(it["total"] or 0) for it in items)  # gross (incl VAT)
         discount_amount = float(subtotal) * (float(disc_pct or 0) / 100.0)
-
         computed_total = float(final_total or (subtotal - discount_amount))
         balance_due = max(computed_total - paid_amount, 0.0)
 
@@ -2052,7 +2219,7 @@ class BillingInvoicingScreen(QWidget):
                 [
                     it["desc"],
                     str(it["qty"]),
-                    f"{float(it['unit']):.4f}",
+                    f"{float(it['unit']):.2f}",
                     f"{float(it['disc_amt']):.2f}",
                     f"{float(it['total']):.2f}",
                     f"{float(it['vat_amt']):.2f}",
@@ -2080,7 +2247,7 @@ class BillingInvoicingScreen(QWidget):
             vat_data.append(
                 [
                     f"{float(row['net'] or 0):.2f}",
-                    f"{row['vat_pct']}%",
+                    f"{row['vat_pct']:.2f}%",
                     f"{float(row['vat_amount'] or 0):.2f}",
                     row["flag"],
                 ]
@@ -2245,7 +2412,7 @@ class BillingInvoicingScreen(QWidget):
                 [
                     it["desc"],
                     str(it["qty"]),
-                    f"{float(it['unit']):.4f}",
+                    f"{float(it['unit']):.2f}",
                     f"{float(it['disc_amt']):.2f}",
                     f"{float(it['vat_amt']):.2f}",
                     f"{float(it['total']):.2f}",
@@ -2273,7 +2440,7 @@ class BillingInvoicingScreen(QWidget):
             vat_data.append(
                 [
                     f"{float(v['net'] or 0):.2f}",
-                    f"{v['vat_pct']}%",
+                    f"{v['vat_pct']:.2f}%",
                     f"{float(v['vat_amount'] or 0):.2f}",
                     v["flag"],
                 ]
